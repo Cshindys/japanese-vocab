@@ -91,6 +91,22 @@
       font-weight: 600;
       box-shadow: 0 2px 6px rgba(47,128,237,0.25);
     }
+    .pos-manage-btn {
+      font-size: 0.75rem; padding: 3px 10px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-secondary); cursor: pointer; transition: all 0.15s;
+    }
+    .pos-manage-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .pos-manage-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px 3px 10px; border-radius: 20px;
+      background: #f0f0f0; border: 1px solid var(--border); font-size: 0.82rem;
+    }
+    .pos-manage-chip button {
+      background: none; border: none; cursor: pointer; color: var(--text-secondary);
+      font-size: 0.75rem; padding: 0 2px; line-height: 1;
+    }
+    .pos-manage-chip button:hover { color: var(--danger); }
 
     /* List View Styles */
     .vocab-grid.list-view .vocab-card {
@@ -279,8 +295,19 @@
         <input type="hidden" id="editLevel" value="N5">
       </div>
       <div class="form-group">
-        <label class="form-label">詞性 / 分類（可多選）</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label class="form-label" style="margin-bottom:0;">詞性 / 分類（可多選）</label>
+          <button type="button" class="pos-manage-btn" onclick="togglePosManager()">⚙️ 管理分類</button>
+        </div>
         <div class="pos-tags-container" id="posTagsContainer"></div>
+        <div id="posManagerPanel" style="display:none;margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;">
+          <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">管理詞性分類（點 ✕ 刪除）</div>
+          <div id="posManagerList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="posNewTagInput" class="form-input" style="flex:1;height:34px;font-size:0.85rem;" placeholder="新增分類名稱…">
+            <button type="button" class="btn btn-primary" style="padding:0 14px;height:34px;font-size:0.85rem;" onclick="addPosTag()">＋ 新增</button>
+          </div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">中文意思</label>
@@ -381,13 +408,46 @@ function setEditLevel(val) {
 // 1. EASIER CATEGORY SELECT: Renders tags instead of a dropdown
 function populatePosTags() {
   const container = document.getElementById('posTagsContainer');
-  const baseList = typeof POS_LIST !== 'undefined' ? POS_LIST : [];
-  const customCategories = ['家族', '身分', '職稱'];
-  const fullList = [...new Set([...baseList, ...customCategories])];
-  
-  container.innerHTML = fullList.map(p => `
-    <button type="button" class="pos-tag-btn" data-value="${p}" onclick="togglePosTag(this)">${p}</button>
-  `).join('');
+  const list = Storage.getPOSTags();
+  container.innerHTML = list.map(p =>
+    `<button type="button" class="pos-tag-btn" data-value="${escapeAttr(p)}" onclick="togglePosTag(this)">${escapeHtml(p)}</button>`
+  ).join('');
+}
+
+function togglePosManager() {
+  const panel = document.getElementById('posManagerPanel');
+  panel.style.display = panel.style.display === 'none' ? '' : 'none';
+  if (panel.style.display !== 'none') renderPosManager();
+}
+
+function renderPosManager() {
+  const list = Storage.getPOSTags();
+  document.getElementById('posManagerList').innerHTML = list.map(tag =>
+    `<span class="pos-manage-chip">${escapeHtml(tag)}<button type="button" onclick="deletePosTag('${escapeAttr(tag)}')" title="刪除">✕</button></span>`
+  ).join('');
+}
+
+function addPosTag() {
+  const input = document.getElementById('posNewTagInput');
+  const name = input.value.trim();
+  if (!name) return;
+  const list = Storage.getPOSTags();
+  if (list.includes(name)) { showToast('已存在此分類', 'error'); return; }
+  list.push(name);
+  Storage.savePOSTags(list);
+  input.value = '';
+  populatePosTags();
+  renderPosManager();
+  showToast('已新增：' + name, 'success');
+}
+
+function deletePosTag(tag) {
+  if (!confirm(`確定刪除「${tag}」這個分類？`)) return;
+  const list = Storage.getPOSTags().filter(t => t !== tag);
+  Storage.savePOSTags(list);
+  populatePosTags();
+  renderPosManager();
+  showToast('已刪除：' + tag, 'success');
 }
 
 function togglePosTag(btn) {
@@ -589,6 +649,37 @@ function openDetail(id) {
           .map(l => `<div class="example-explanation">💡 ${l.trim()}</div>`).join('')
       : '';
 
+    if (ex.type === 'qa') {
+      const qHiraHtml = ex.hiragana        ? `<div class="ex-hiragana" style="margin-left:32px;">${escapeHtml(ex.hiragana)}</div>` : '';
+      const qTlHtml   = ex.translation     ? `<div class="example-translation" style="margin-left:32px;">${escapeHtml(ex.translation)}</div>` : '';
+      const aHiraHtml = ex.answerHiragana  ? `<div class="ex-hiragana" style="margin-left:32px;">${escapeHtml(ex.answerHiragana)}</div>` : '';
+      const aTlHtml   = ex.answerTranslation ? `<div class="example-translation" style="margin-left:32px;">${escapeHtml(ex.answerTranslation)}</div>` : '';
+      return `
+        <div class="example-card">
+          <div class="ex-qa-block">
+            <div class="ex-qa-row">
+              <span class="ex-qa-label ex-qa-q">問</span>
+              <div style="flex:1;min-width:0;">
+                ${qHiraHtml}
+                <div class="ex-qa-text">${linkVocabInSentence(ex.sentence, v.id, vocab)}</div>
+                ${qTlHtml}
+              </div>
+              <button class="ex-play-btn" onclick="speakWord('${escapeAttr(ex.sentence)}')" title="朗讀">🔊</button>
+            </div>
+            <div class="ex-qa-row" style="margin-top:8px;">
+              <span class="ex-qa-label ex-qa-a">答</span>
+              <div style="flex:1;min-width:0;">
+                ${aHiraHtml}
+                <div class="ex-qa-text">${linkVocabInSentence(ex.answer||'', v.id, vocab)}</div>
+                ${aTlHtml}
+              </div>
+              <button class="ex-play-btn" onclick="speakWord('${escapeAttr(ex.answer||'')}')" title="朗讀">🔊</button>
+            </div>
+          </div>
+          ${explHtml}
+        </div>`;
+    }
+
     if (ex.type === 'dialogue') {
       const speakers = [...new Set((ex.dialogue||[]).map(l => l.speaker).filter(Boolean))];
       const bubblesHtml = (ex.dialogue||[]).map(line => {
@@ -757,40 +848,83 @@ function addExampleRow(ex = {}, idx) {
   const div = document.createElement('div');
   div.className = 'example-item';
   const isDialogue = ex.type === 'dialogue';
+  const type = ex.type || 'normal';
+  const isQa = type === 'qa';
+  const isDialogue = type === 'dialogue';
   div.innerHTML = `
     <button type="button" class="remove-example" onclick="this.closest('.example-item').remove()">✕</button>
     <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <button type="button" class="ex-type-btn ${!isDialogue?'active':''}" onclick="setVocabExType(this,'normal')">一般例句</button>
+      <button type="button" class="ex-type-btn ${type==='normal'?'active':''}" onclick="setVocabExType(this,'normal')">一般例句</button>
+      <button type="button" class="ex-type-btn ${isQa?'active':''}" onclick="setVocabExType(this,'qa')">問答</button>
       <button type="button" class="ex-type-btn ${isDialogue?'active':''}" onclick="setVocabExType(this,'dialogue')">💬 會話文</button>
     </div>
-    <input type="hidden" class="ex-type" value="${isDialogue?'dialogue':'normal'}">
+    <input type="hidden" class="ex-type" value="${type}">
 
-    <!-- always visible: hiragana/reading -->
-    <div class="form-group" style="margin-bottom:8px;">
-      <label class="form-label">假名（可選）</label>
-      <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：がっこうにいきます。">
-    </div>
-
-    <!-- normal fields -->
-    <div class="ex-normal-fields" ${isDialogue?'style="display:none;"':''}>
+    <!-- ── 一般例句 ── -->
+    <div class="ex-normal-fields" ${type!=='normal'?'style="display:none;"':''}>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">假名（可選）</label>
+        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：がっこうにいきます。">
+      </div>
       <div class="form-group" style="margin-bottom:8px;">
         <label class="form-label">例句（日文）</label>
         <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：学校に行きます。">
       </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">翻譯（中文）</label>
+        <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="例：去學校。">
+      </div>
     </div>
 
-    <!-- dialogue fields -->
+    <!-- ── 問答 ── -->
+    <div class="ex-qa-fields" ${!isQa?'style="display:none;"':''}>
+      <div style="border-left:3px solid var(--primary);padding-left:10px;margin-bottom:10px;">
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">問（Q）</label>
+          <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：これは何ですか。">
+        </div>
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">假名（可選）</label>
+          <input type="text" class="form-input ex-q-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="假名讀法">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">翻譯（中文）</label>
+          <input type="text" class="form-input ex-q-translation" value="${escapeHtml(ex.translation||'')}" placeholder="中文翻譯">
+        </div>
+      </div>
+      <div style="border-left:3px solid #10b981;padding-left:10px;margin-bottom:10px;">
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">答（A）</label>
+          <input type="text" class="form-input ex-answer" value="${escapeHtml(ex.answer||'')}" placeholder="例：これは本です。">
+        </div>
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">假名（可選）</label>
+          <input type="text" class="form-input ex-a-hiragana" value="${escapeHtml(ex.answerHiragana||'')}" placeholder="假名讀法">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">翻譯（中文）</label>
+          <input type="text" class="form-input ex-a-translation" value="${escapeHtml(ex.answerTranslation||'')}" placeholder="中文翻譯">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 會話文 ── -->
     <div class="ex-dialogue-fields" ${!isDialogue?'style="display:none;"':''}>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">假名/場景（可選）</label>
+        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="場景說明或讀法">
+      </div>
       <div class="form-group" style="margin-bottom:8px;">
         <label class="form-label">會話內容（每行：說話者：台詞）</label>
         <textarea class="form-input ex-dialogue-text" style="min-height:90px;font-family:inherit;resize:vertical;" placeholder="例：&#10;受付：いらっしゃいませ。&#10;客：クリーニングをお願いします。">${escapeHtml((ex.dialogue||[]).map(l=>l.speaker?l.speaker+'：'+l.text:l.text).join('\n'))}</textarea>
       </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">翻譯（中文）</label>
+        <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="整段翻譯（可選）">
+      </div>
     </div>
 
-    <div class="form-group" style="margin-bottom:8px;">
-      <label class="form-label">翻譯（中文）</label>
-      <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="例：去學校。">
-    </div>
+    <!-- ── 說明（always）── -->
     <div class="form-group" style="margin-bottom:0;">
       <label class="form-label">說明（可選）</label>
       <textarea class="form-input ex-explanation" style="min-height:60px;font-family:inherit;resize:vertical;" placeholder="每行一條說明">${escapeHtml(ex.explanation||'')}</textarea>
@@ -804,9 +938,9 @@ function setVocabExType(btn, type) {
   item.querySelectorAll('.ex-type-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   item.querySelector('.ex-type').value = type;
-  const isDialogue = type === 'dialogue';
-  item.querySelector('.ex-normal-fields').style.display = isDialogue ? 'none' : '';
-  item.querySelector('.ex-dialogue-fields').style.display = isDialogue ? '' : 'none';
+  item.querySelector('.ex-normal-fields').style.display  = type === 'normal'   ? '' : 'none';
+  item.querySelector('.ex-qa-fields').style.display      = type === 'qa'       ? '' : 'none';
+  item.querySelector('.ex-dialogue-fields').style.display = type === 'dialogue' ? '' : 'none';
 }
 
 function saveVocab() {
@@ -829,19 +963,31 @@ function saveVocab() {
   const exItems = document.querySelectorAll('#examplesContainer .example-item');
   const examples = Array.from(exItems).map(item => {
     const type = item.querySelector('.ex-type').value;
-    const translation = item.querySelector('.ex-translation').value.trim();
     const explanation = item.querySelector('.ex-explanation').value.trim();
+    if (type === 'qa') {
+      const sentence         = item.querySelector('.ex-sentence').value.trim();
+      const hiragana         = item.querySelector('.ex-q-hiragana').value.trim();
+      const translation      = item.querySelector('.ex-q-translation').value.trim();
+      const answer           = item.querySelector('.ex-answer').value.trim();
+      const answerHiragana   = item.querySelector('.ex-a-hiragana').value.trim();
+      const answerTranslation = item.querySelector('.ex-a-translation').value.trim();
+      return sentence ? { type, sentence, hiragana, translation, answer, answerHiragana, answerTranslation, explanation } : null;
+    }
     if (type === 'dialogue') {
+      const hiragana    = item.querySelector('.ex-hiragana').value.trim();
+      const translation = item.querySelector('.ex-translation').value.trim();
       const raw = item.querySelector('.ex-dialogue-text').value.trim();
       const dialogue = raw.split('\n').filter(l => l.trim()).map(line => {
         const idx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
         if (idx > 0) return { speaker: line.slice(0, idx).trim(), text: line.slice(idx + 1).trim() };
         return { speaker: '', text: line.trim() };
       });
-      return dialogue.length ? { type: 'dialogue', dialogue, translation, explanation } : null;
+      return dialogue.length ? { type, hiragana, dialogue, translation, explanation } : null;
     }
-    const sentence = item.querySelector('.ex-sentence').value.trim();
-    const hiragana = item.querySelector('.ex-hiragana').value.trim();
+    // normal
+    const sentence    = item.querySelector('.ex-sentence').value.trim();
+    const hiragana    = item.querySelector('.ex-hiragana').value.trim();
+    const translation = item.querySelector('.ex-translation').value.trim();
     return sentence ? { type: 'normal', sentence, hiragana, translation, explanation } : null;
   }).filter(Boolean);
 

@@ -492,6 +492,18 @@ const Storage = {
   saveGrammar(d)  { this._save('grammar',  'jp_grammar',  d); },
   saveReadings(d) { this._save('readings', 'jp_readings', d); },
 
+  // ── 詞性標籤（localStorage only — device preference）──
+  getPOSTags() {
+    try {
+      const raw = localStorage.getItem('jp_pos_tags');
+      if (raw) { const l = JSON.parse(raw); if (Array.isArray(l) && l.length) return l; }
+    } catch {}
+    return typeof POS_LIST !== 'undefined' ? [...POS_LIST] : [];
+  },
+  savePOSTags(list) {
+    localStorage.setItem('jp_pos_tags', JSON.stringify(list));
+  },
+
   _save(cacheKey, lsKey, data) {
     this._cache[cacheKey] = data;
     localStorage.setItem(lsKey, JSON.stringify(data)); // 離線備援
