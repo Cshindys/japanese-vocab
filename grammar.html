@@ -102,12 +102,11 @@
         <input type="text" class="form-input" id="editMeaning" placeholder="例：〜是〜（表示斷定）">
       </div>
       <div class="form-group">
-        <label class="form-label">接續方式（簡）</label>
-        <input type="text" class="form-input" id="editConjugation" placeholder="例：名詞 + は + 名詞 + です">
-      </div>
-      <div class="form-group">
-        <label class="form-label">詳細接續</label>
-        <input type="text" class="form-input" id="editDetailedConjugation" placeholder="例：名詞＋格助詞ヤ＋名詞（＋副助詞ナド）">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label class="form-label" style="margin:0;">接續方式</label>
+          <button type="button" onclick="addConjugationRow()" style="font-size:0.75rem;padding:2px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text-secondary);cursor:pointer;">＋ 新增</button>
+        </div>
+        <div id="conjugationsContainer"></div>
       </div>
       <div class="form-group">
         <label class="form-label">詳細說明</label>
@@ -228,16 +227,14 @@ function renderGrammar() {
         <span class="grammar-chevron">▼</span>
       </div>
       <div class="grammar-card-body">
-        ${g.conjugation ? `
-          <div class="grammar-conjugation" style="margin-top:14px;">
-            <strong>接續：</strong>${g.conjugation}
-          </div>
-        ` : ''}
-        ${g.detailedConjugation ? `
-          <div class="grammar-conjugation" style="margin-top:6px;border-left-color:#7C3AED;">
-            <strong>詳細接續：</strong>${g.detailedConjugation}
-          </div>
-        ` : ''}
+        ${(() => {
+          const conjs = g.conjugations?.length ? g.conjugations
+            : [g.conjugation, g.detailedConjugation].filter(Boolean);
+          return conjs.map((c, i) => `
+            <div class="grammar-conjugation" style="margin-top:${i===0?'14':'6'}px;${i>0?'border-left-color:#7C3AED;':''}">
+              ${c}
+            </div>`).join('');
+        })()}
         ${g.detail ? `<div class="detail-rich">${renderDetail(g.detail)}</div>` : ''}
         <div class="detail-section-title" style="margin-top:16px;">例句</div>
         ${(g.examples || []).map(ex => `
@@ -327,6 +324,24 @@ function toggleGrammar(id) {
   card.classList.toggle('expanded');
 }
 
+function addConjugationRow(value = '') {
+  const container = document.getElementById('conjugationsContainer');
+  const row = document.createElement('div');
+  row.className = 'conj-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+  row.innerHTML = `
+    <input type="text" class="form-input conj-input" value="${escapeHtml(value)}" placeholder="例：名詞 + は + 名詞 + です" style="flex:1;">
+    <button type="button" onclick="this.closest('.conj-row').remove()" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:none;color:var(--text-light);cursor:pointer;font-size:0.85rem;">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function renderConjugationsInForm(conjugations) {
+  document.getElementById('conjugationsContainer').innerHTML = '';
+  const list = conjugations?.length ? conjugations : [''];
+  list.forEach(c => addConjugationRow(c));
+}
+
 // ===== Edit Modal =====
 function openAdd() {
   document.getElementById('editModalTitle').textContent = '新增文法';
@@ -334,8 +349,7 @@ function openAdd() {
   document.getElementById('editPattern').value = '';
   document.getElementById('editLevel').value = 'N5';
   document.getElementById('editMeaning').value = '';
-  document.getElementById('editConjugation').value = '';
-  document.getElementById('editDetailedConjugation').value = '';
+  renderConjugationsInForm([]);
   document.getElementById('editDetail').value = '';
   document.getElementById('editAuthor').value = '';
   document.getElementById('editSourceUrl').value = '';
@@ -355,8 +369,9 @@ function openEdit(id) {
   document.getElementById('editPattern').value = g.pattern;
   document.getElementById('editLevel').value = g.level;
   document.getElementById('editMeaning').value = g.meaning;
-  document.getElementById('editConjugation').value = g.conjugation || '';
-  document.getElementById('editDetailedConjugation').value = g.detailedConjugation || '';
+  const conjs = g.conjugations?.length ? g.conjugations
+    : [g.conjugation, g.detailedConjugation].filter(Boolean);
+  renderConjugationsInForm(conjs);
   document.getElementById('editDetail').value = g.detail || '';
   document.getElementById('editAuthor').value = g.author || '';
   document.getElementById('editSourceUrl').value = g.sourceUrl || '';
@@ -449,8 +464,8 @@ function saveGrammar() {
   const pattern = document.getElementById('editPattern').value.trim();
   const level = document.getElementById('editLevel').value;
   const meaning = document.getElementById('editMeaning').value.trim();
-  const conjugation = document.getElementById('editConjugation').value.trim();
-  const detailedConjugation = document.getElementById('editDetailedConjugation').value.trim();
+  const conjugations = Array.from(document.querySelectorAll('#conjugationsContainer .conj-input'))
+    .map(i => i.value.trim()).filter(Boolean);
   const detail = document.getElementById('editDetail').value.trim();
   const author = document.getElementById('editAuthor').value.trim();
   const sourceUrl = document.getElementById('editSourceUrl').value.trim();
@@ -478,10 +493,10 @@ function saveGrammar() {
   const grammar = Storage.getGrammar();
   if (id) {
     const idx = grammar.findIndex(g => g.id === id);
-    if (idx !== -1) grammar[idx] = { ...grammar[idx], pattern, level, meaning, conjugation, detailedConjugation, detail, author, sourceUrl, comparisons, examples };
+    if (idx !== -1) grammar[idx] = { ...grammar[idx], pattern, level, meaning, conjugations, detail, author, sourceUrl, comparisons, examples };
     showToast('文法已更新', 'success');
   } else {
-    grammar.push({ id: Storage.genId('g'), pattern, level, meaning, conjugation, detailedConjugation, detail, author, sourceUrl, comparisons, examples });
+    grammar.push({ id: Storage.genId('g'), pattern, level, meaning, conjugations, detail, author, sourceUrl, comparisons, examples });
     showToast('新增成功', 'success');
   }
 
