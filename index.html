@@ -326,8 +326,8 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">關聯文法（可多選，按住 Ctrl/Cmd）</label>
-        <select class="form-select" id="editGrammarIds" multiple style="min-height: 80px;"></select>
+        <label class="form-label">關聯文法（可多選）</label>
+        <div class="pos-tags-container" id="grammarTagsContainer" style="max-height:160px;overflow-y:auto;"></div>
       </div>
 
       <div class="examples-section">
@@ -831,10 +831,25 @@ function openEdit(id) {
 
 function populateGrammarSelect(selectedIds) {
   const grammar = Storage.getGrammar();
-  const sel = document.getElementById('editGrammarIds');
-  sel.innerHTML = grammar.map(g => `
-    <option value="${g.id}" ${selectedIds.includes(g.id) ? 'selected' : ''}>${g.level} ${g.pattern} — ${g.meaning}</option>
+  const container = document.getElementById('grammarTagsContainer');
+  if (!grammar.length) {
+    container.innerHTML = '<span style="color:var(--text-light);font-size:0.82rem;">尚無文法資料</span>';
+    return;
+  }
+  container.innerHTML = grammar.map(g => `
+    <button type="button" class="pos-tag-btn${selectedIds.includes(g.id) ? ' selected' : ''}"
+      data-grammar-id="${g.id}" onclick="toggleGrammarTag(this)"
+      title="${escapeAttr(g.meaning)}">${escapeHtml(g.level)} ${escapeHtml(g.pattern)}</button>
   `).join('');
+}
+
+function toggleGrammarTag(btn) {
+  btn.classList.toggle('selected');
+}
+
+function getSelectedGrammarIds() {
+  return Array.from(document.querySelectorAll('#grammarTagsContainer .pos-tag-btn.selected'))
+    .map(b => b.dataset.grammarId);
 }
 
 function renderExamplesInForm(examples) {
@@ -956,8 +971,7 @@ function saveVocab() {
 
   if (!kanji || !meaning) { showToast('請填寫單字與意思', 'error'); return; }
 
-  const grammarSel = document.getElementById('editGrammarIds');
-  const grammarIds = Array.from(grammarSel.selectedOptions).map(o => o.value);
+  const grammarIds = getSelectedGrammarIds();
 
   const exItems = document.querySelectorAll('#examplesContainer .example-item');
   const examples = Array.from(exItems).map(item => {
