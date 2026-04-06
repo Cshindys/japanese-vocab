@@ -259,33 +259,45 @@ function renderGrammar() {
             </div>`;
           }
           if (ex.type === 'qa') {
+            const qHiraHtml = ex.hiragana ? `<div class="ex-hiragana" style="margin-left:32px;">${escapeHtml(ex.hiragana)}</div>` : '';
+            const qTlHtml   = ex.translation ? `<div class="example-translation" style="margin-left:32px;">${escapeHtml(ex.translation)}</div>` : '';
+            const aHiraHtml = ex.answerHiragana ? `<div class="ex-hiragana" style="margin-left:32px;">${escapeHtml(ex.answerHiragana)}</div>` : '';
+            const aTlHtml   = ex.answerTranslation ? `<div class="example-translation" style="margin-left:32px;">${escapeHtml(ex.answerTranslation)}</div>`
+                              : (ex.answerTranslation === undefined && ex.translation && !ex.answerHiragana)
+                                ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : '';
             return `
             <div class="example-card">
-              ${hiraganaHtml}
               <div class="ex-qa-block">
                 <div class="ex-qa-row">
                   <span class="ex-qa-label ex-qa-q">問</span>
-                  <div class="ex-qa-text">${linkVocabInSentence(ex.sentence)}</div>
+                  <div style="flex:1;min-width:0;">
+                    ${qHiraHtml}
+                    <div class="ex-qa-text">${linkVocabInSentence(ex.sentence)}</div>
+                    ${qTlHtml}
+                  </div>
                   <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
                 </div>
-                <div class="ex-qa-row">
+                <div class="ex-qa-row" style="margin-top:8px;">
                   <span class="ex-qa-label ex-qa-a">答</span>
-                  <div class="ex-qa-text">${linkVocabInSentence(ex.answer||'')}</div>
+                  <div style="flex:1;min-width:0;">
+                    ${aHiraHtml}
+                    <div class="ex-qa-text">${linkVocabInSentence(ex.answer||'')}</div>
+                    ${aTlHtml}
+                  </div>
                   <button class="ex-play-btn" onclick="speakWord('${(ex.answer||'').replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
                 </div>
               </div>
-              ${ex.translation ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : ''}
               ${explHtml}
             </div>`;
           }
           return `
           <div class="example-card">
-            ${hiraganaHtml}
+            ${ex.hiragana ? `<div class="ex-hiragana">${escapeHtml(ex.hiragana)}</div>` : ''}
             <div class="example-card-top">
               <div class="example-sentence">${linkVocabInSentence(ex.sentence)}</div>
               <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
             </div>
-            <div class="example-translation">${escapeHtml(ex.translation||'')}</div>
+            ${ex.translation ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : ''}
             ${explHtml}
           </div>`;
         }).join('') || '<p style="color:var(--text-light);font-size:0.85rem;">尚無例句</p>'}
@@ -522,36 +534,71 @@ function addExampleRow(ex = {}) {
     </div>
     <input type="hidden" class="ex-type" value="${type}">
 
-    <!-- always visible: hiragana/reading -->
-    <div class="form-group" style="margin-bottom:8px;">
-      <label class="form-label">假名（可選）</label>
-      <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="假名讀法或場景說明">
-    </div>
-
-    <!-- normal / qa fields -->
-    <div class="ex-nondiag-fields" ${isDialogue?'style="display:none;"':''}>
-      <div class="form-group ex-sentence-group" style="margin-bottom:8px;">
-        <label class="form-label ex-sentence-label">${isQa?'問（Q）':'例句（日文）'}</label>
-        <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="${isQa?'例：これは何ですか。':'例：私は学生です。'}">
+    <!-- ── 一般例句 ── -->
+    <div class="ex-normal-fields" ${!(!isQa&&!isDialogue)?'style="display:none;"':''}>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">假名（可選）</label>
+        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="假名讀法">
       </div>
-      <div class="form-group ex-answer-group" style="margin-bottom:8px;${!isQa?'display:none;':''}">
-        <label class="form-label">答（A）</label>
-        <input type="text" class="form-input ex-answer" value="${escapeHtml(ex.answer||'')}" placeholder="例：これは本です。">
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">例句（日文）</label>
+        <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：私は学生です。">
+      </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">翻譯（中文）</label>
+        <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="例：我是學生。">
       </div>
     </div>
 
-    <!-- dialogue fields -->
+    <!-- ── 問答 ── -->
+    <div class="ex-qa-fields" ${!isQa?'style="display:none;"':''}>
+      <div style="border-left:3px solid var(--primary);padding-left:10px;margin-bottom:10px;">
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">問（Q）</label>
+          <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：これは何ですか。">
+        </div>
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">假名（可選）</label>
+          <input type="text" class="form-input ex-q-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="假名讀法">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">翻譯（中文）</label>
+          <input type="text" class="form-input ex-q-translation" value="${escapeHtml(ex.translation||'')}" placeholder="中文翻譯">
+        </div>
+      </div>
+      <div style="border-left:3px solid #10b981;padding-left:10px;margin-bottom:10px;">
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">答（A）</label>
+          <input type="text" class="form-input ex-answer" value="${escapeHtml(ex.answer||'')}" placeholder="例：これは本です。">
+        </div>
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label">假名（可選）</label>
+          <input type="text" class="form-input ex-a-hiragana" value="${escapeHtml(ex.answerHiragana||'')}" placeholder="假名讀法">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">翻譯（中文）</label>
+          <input type="text" class="form-input ex-a-translation" value="${escapeHtml(ex.answerTranslation||'')}" placeholder="中文翻譯">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 會話文 ── -->
     <div class="ex-dialogue-fields" ${!isDialogue?'style="display:none;"':''}>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">假名/場景（可選）</label>
+        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="場景說明或讀法">
+      </div>
       <div class="form-group" style="margin-bottom:8px;">
         <label class="form-label">會話內容（每行：說話者：台詞）</label>
         <textarea class="form-input ex-dialogue-text" style="min-height:90px;font-family:inherit;resize:vertical;" placeholder="例：&#10;A：これは何ですか。&#10;B：本です。">${escapeHtml((ex.dialogue||[]).map(l=>l.speaker?l.speaker+'：'+l.text:l.text).join('\n'))}</textarea>
       </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">翻譯（中文）</label>
+        <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="整段翻譯（可選）">
+      </div>
     </div>
 
-    <div class="form-group" style="margin-bottom:8px;">
-      <label class="form-label">翻譯（中文）</label>
-      <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="例：我是學生。">
-    </div>
+    <!-- ── 說明（always）── -->
     <div class="form-group" style="margin-bottom:0;">
       <label class="form-label">說明（可選）</label>
       <textarea class="form-textarea ex-explanation" rows="2" style="min-height:unset;" placeholder="可多行說明，例：&#10;「は」提示主題&#10;「です」表示斷定語氣">${escapeHtml(ex.explanation||'')}</textarea>
@@ -565,15 +612,9 @@ function setExType(btn, type) {
   item.querySelectorAll('.ex-type-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   item.querySelector('.ex-type').value = type;
-  const isQa = type === 'qa';
-  const isDialogue = type === 'dialogue';
-  item.querySelector('.ex-nondiag-fields').style.display = isDialogue ? 'none' : '';
-  item.querySelector('.ex-dialogue-fields').style.display = isDialogue ? '' : 'none';
-  if (!isDialogue) {
-    item.querySelector('.ex-answer-group').style.display = isQa ? '' : 'none';
-    item.querySelector('.ex-sentence-label').textContent = isQa ? '問（Q）' : '例句（日文）';
-    item.querySelector('.ex-sentence').placeholder = isQa ? '例：これは何ですか。' : '例：私は学生です。';
-  }
+  item.querySelector('.ex-normal-fields').style.display  = type === 'normal'   ? '' : 'none';
+  item.querySelector('.ex-qa-fields').style.display      = type === 'qa'       ? '' : 'none';
+  item.querySelector('.ex-dialogue-fields').style.display = type === 'dialogue' ? '' : 'none';
 }
 
 function saveGrammar() {
@@ -603,22 +644,32 @@ function saveGrammar() {
   const exItems = document.querySelectorAll('#examplesContainer .example-item');
   const examples = Array.from(exItems).map(item => {
     const type = item.querySelector('.ex-type').value;
-    const hiragana = item.querySelector('.ex-hiragana').value.trim();
-    const translation = item.querySelector('.ex-translation').value.trim();
     const explanation = item.querySelector('.ex-explanation').value.trim();
+    if (type === 'qa') {
+      const sentence        = item.querySelector('.ex-sentence').value.trim();
+      const hiragana        = item.querySelector('.ex-q-hiragana').value.trim();
+      const translation     = item.querySelector('.ex-q-translation').value.trim();
+      const answer          = item.querySelector('.ex-answer').value.trim();
+      const answerHiragana  = item.querySelector('.ex-a-hiragana').value.trim();
+      const answerTranslation = item.querySelector('.ex-a-translation').value.trim();
+      return sentence ? { type, sentence, hiragana, translation, answer, answerHiragana, answerTranslation, explanation } : null;
+    }
     if (type === 'dialogue') {
+      const hiragana = item.querySelector('.ex-hiragana').value.trim();
+      const translation = item.querySelector('.ex-translation').value.trim();
       const raw = item.querySelector('.ex-dialogue-text').value.trim();
       const dialogue = raw.split('\n').filter(l => l.trim()).map(line => {
         const idx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
         if (idx > 0) return { speaker: line.slice(0, idx).trim(), text: line.slice(idx + 1).trim() };
         return { speaker: '', text: line.trim() };
       });
-      return dialogue.length ? { type: 'dialogue', hiragana, dialogue, translation, explanation } : null;
+      return dialogue.length ? { type, hiragana, dialogue, translation, explanation } : null;
     }
-    const sentence = item.querySelector('.ex-sentence').value.trim();
-    const base = { type, hiragana, sentence, translation, explanation };
-    if (type === 'qa') base.answer = item.querySelector('.ex-answer').value.trim();
-    return sentence ? base : null;
+    // normal
+    const hiragana    = item.querySelector('.ex-hiragana').value.trim();
+    const sentence    = item.querySelector('.ex-sentence').value.trim();
+    const translation = item.querySelector('.ex-translation').value.trim();
+    return sentence ? { type, hiragana, sentence, translation, explanation } : null;
   }).filter(Boolean);
 
   const grammar = Storage.getGrammar();
