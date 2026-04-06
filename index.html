@@ -601,6 +601,7 @@ function openDetail(id) {
       return `
         <div class="example-card">
           <div class="dialogue-badge">💬 會話文</div>
+          ${ex.hiragana ? `<div class="ex-hiragana">${escapeHtml(ex.hiragana)}</div>` : ''}
           <div class="dialogue-container">${bubblesHtml}</div>
           ${ex.translation ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : ''}
           ${explHtml}
@@ -764,15 +765,17 @@ function addExampleRow(ex = {}, idx) {
     </div>
     <input type="hidden" class="ex-type" value="${isDialogue?'dialogue':'normal'}">
 
+    <!-- always visible: hiragana/reading -->
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">假名（可選）</label>
+      <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：がっこうにいきます。">
+    </div>
+
     <!-- normal fields -->
     <div class="ex-normal-fields" ${isDialogue?'style="display:none;"':''}>
       <div class="form-group" style="margin-bottom:8px;">
         <label class="form-label">例句（日文）</label>
         <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：学校に行きます。">
-      </div>
-      <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label">例句假名（可選）</label>
-        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：がっこうにいきます。">
       </div>
     </div>
 
