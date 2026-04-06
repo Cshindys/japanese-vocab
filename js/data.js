@@ -516,9 +516,9 @@ const Storage = {
   // ── 從 Supabase 載入（頁面啟動時呼叫一次）──
   async loadFromCloud() {
     if (typeof db === 'undefined') {
-      this._cache.vocab    = this._fromLS('jp_vocab',    DEFAULT_VOCAB);
-      this._cache.grammar  = this._fromLS('jp_grammar',  DEFAULT_GRAMMAR);
-      this._cache.readings = this._fromLS('jp_readings', DEFAULT_READINGS);
+      this._cache.vocab    = this._fromLS('jp_vocab');
+      this._cache.grammar  = this._fromLS('jp_grammar');
+      this._cache.readings = this._fromLS('jp_readings');
       return false;
     }
 
@@ -528,26 +528,22 @@ const Storage = {
       db.from('readings').select('data'),
     ]);
 
-    this._cache.vocab    = v.data?.length ? v.data.map(row => row.data) : this._fromLS('jp_vocab',    DEFAULT_VOCAB);
-    this._cache.grammar  = g.data?.length ? g.data.map(row => row.data) : this._fromLS('jp_grammar',  DEFAULT_GRAMMAR);
-    this._cache.readings = r.data?.length ? r.data.map(row => row.data) : this._fromLS('jp_readings', DEFAULT_READINGS);
+    this._cache.vocab    = v.data ? v.data.map(row => row.data) : this._fromLS('jp_vocab');
+    this._cache.grammar  = g.data ? g.data.map(row => row.data) : this._fromLS('jp_grammar');
+    this._cache.readings = r.data ? r.data.map(row => row.data) : this._fromLS('jp_readings');
     return true;
   },
 
-  _fromLS(key, defaults) {
+  _fromLS(key) {
     try {
       const raw = localStorage.getItem(key);
-      if (!raw) return defaults;
+      if (!raw) return [];
       const data = JSON.parse(raw);
-      return Array.isArray(data) && data.length ? data : defaults;
-    } catch { return defaults; }
+      return Array.isArray(data) ? data : [];
+    } catch { return []; }
   },
 
-  resetAll() {
-    this.saveVocab(DEFAULT_VOCAB);
-    this.saveGrammar(DEFAULT_GRAMMAR);
-    this.saveReadings(DEFAULT_READINGS);
-  },
+  resetAll() {},
 
   genId(prefix) {
     return prefix + Date.now() + Math.random().toString(36).substr(2, 5);
