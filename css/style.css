@@ -1194,6 +1194,41 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
 
+/* ===== Detail Rich Text ===== */
+.detail-rich { margin: 12px 0; font-size: 0.88rem; line-height: 1.85; color: var(--text-secondary); }
+.detail-para { margin: 0 0 10px; }
+.detail-divider { border: none; border-top: 2px dashed var(--border); margin: 14px 0; }
+.detail-heading {
+  font-size: 0.92rem; font-weight: 700; color: var(--text-primary);
+  margin: 18px 0 6px; padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+.detail-callout {
+  background: #FFF9EB; border: 1px solid #FCD34D; border-left: 4px solid #F59E0B;
+  border-radius: var(--radius); padding: 9px 12px; margin: 8px 0;
+  color: #92400E; font-size: 0.85rem;
+}
+.detail-arrow-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; margin: 3px 0;
+  background: var(--sidebar-bg); border-radius: var(--radius-sm);
+  font-family: var(--font-jp);
+}
+.detail-arrow-left  { color: var(--text-primary); font-weight: 500; }
+.detail-arrow-sym   { color: var(--accent); font-weight: 700; font-size: 1.1em; flex-shrink: 0; }
+.detail-arrow-right { color: #16A34A; font-weight: 600; }
+
+/* ===== Detail Toolbar ===== */
+.detail-toolbar {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px;
+}
+.detail-toolbar button {
+  padding: 3px 10px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-secondary); font-size: 0.75rem;
+  cursor: pointer; font-family: var(--font-jp); transition: all 0.15s;
+}
+.detail-toolbar button:hover { border-color: var(--accent); color: var(--accent); background: #EBF4FF; }
+
 /* ===== Dialogue ===== */
 .dialogue-container { display: flex; flex-direction: column; gap: 14px; padding: 8px 0; }
 .dialogue-line { display: flex; flex-direction: column; max-width: 78%; gap: 4px; }
