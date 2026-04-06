@@ -509,7 +509,7 @@ const Storage = {
         .delete()
         .not('id', 'in', `(${currentIds.map(id => `"${id}"`).join(',')})`);
     } else {
-      await db.from(table).delete();
+      await db.from(table).delete().gte('id', '');
     }
   },
 

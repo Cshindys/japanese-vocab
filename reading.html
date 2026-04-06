@@ -107,6 +107,13 @@
             <option value="N1">N1</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">文章類型</label>
+          <select class="form-select" id="editArticleType" onchange="onArticleTypeChange()">
+            <option value="article">📄 一般文章</option>
+            <option value="dialogue">💬 會話文</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">文章說明（摘要）</label>
@@ -120,12 +127,12 @@
         </div>
 
         <!-- Grammar picker -->
-        <div style="margin-bottom:8px;">
+        <div id="grammarPickerSection" style="margin-bottom:8px;">
           <div style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">點擊文法 → 插入標記（先在文章中選取要高亮的文字）</div>
           <div id="grammarPickerBtns" style="display:flex;flex-wrap:wrap;gap:5px;max-height:110px;overflow-y:auto;padding:4px 0;"></div>
         </div>
 
-        <textarea class="form-textarea" id="editContent" style="min-height:200px;font-family:var(--font-jp);" placeholder="在此輸入日文文章內容...&#10;&#10;例：&#10;私は田中です。学生です。&#10;&#10;選取「は」後點上方的【〜は〜です】按鈕，即可標記文法重點。"></textarea>
+        <textarea class="form-textarea" id="editContent" style="min-height:200px;font-family:var(--font-jp);" placeholder="在此輸入日文文章內容..."></textarea>
       </div>
 
       <div class="form-group">
@@ -245,7 +252,7 @@ function openArticle(id) {
   `;
 
   // Render content
-  document.getElementById('articleBody').innerHTML = renderContent(r.content, grammar);
+  document.getElementById('articleBody').innerHTML = renderContent(r.content, grammar, r.articleType);
 
   // Grammar used list
   const grammarUsed = (r.grammarIds || [])
@@ -273,8 +280,22 @@ function openArticle(id) {
   window.scrollTo(0, 0);
 }
 
-function renderContent(content, grammar) {
+function renderContent(content, grammar, articleType) {
   if (!content || !Array.isArray(content)) return '';
+
+  // Dialogue rendering
+  if (articleType === 'dialogue' || content[0]?.type === 'dialogue-line') {
+    const speakers = [...new Set(content.map(l => l.speaker).filter(Boolean))];
+    return `<div class="dialogue-container">${content.map((line, i) => {
+      const speakerIdx = speakers.indexOf(line.speaker);
+      const side = speakerIdx % 2 === 0 ? 'left' : 'right';
+      return `
+        <div class="dialogue-line dialogue-${side}">
+          ${line.speaker ? `<div class="dialogue-speaker">${line.speaker}</div>` : ''}
+          <div class="dialogue-bubble">${line.text}</div>
+        </div>`;
+    }).join('')}</div>`;
+  }
 
   let html = '';
   let paragraphs = [''];
@@ -337,14 +358,29 @@ function setupTooltip() {
 }
 
 // ===== Edit Modal =====
+function onArticleTypeChange() {
+  const type = document.getElementById('editArticleType').value;
+  const ta = document.getElementById('editContent');
+  const grammarSection = document.getElementById('grammarPickerSection');
+  if (type === 'dialogue') {
+    ta.placeholder = '每行一句對話，格式：角色：台詞\n\n例：\n受付：いらっしゃいませ\n客：このスーツ、ドライ・クリーニングでお願いします\n受付：かしこまりました。';
+    if (grammarSection) grammarSection.style.display = 'none';
+  } else {
+    ta.placeholder = '在此輸入日文文章內容...\n\n例：\n私は田中です。学生です。\n\n選取「は」後點上方的【〜は〜です】按鈕，即可標記文法重點。';
+    if (grammarSection) grammarSection.style.display = '';
+  }
+}
+
 function openAdd() {
   document.getElementById('editModalTitle').textContent = '新增文章';
   document.getElementById('editId').value = '';
   document.getElementById('editTitle').value = '';
   document.getElementById('editLevel').value = 'N5';
+  document.getElementById('editArticleType').value = 'article';
   document.getElementById('editDesc').value = '';
   document.getElementById('editContent').value = '';
   document.getElementById('editDeleteBtn').style.display = 'none';
+  onArticleTypeChange();
   populateGrammarSelect([]);
   document.getElementById('editModal').classList.add('open');
 }
@@ -359,8 +395,10 @@ function openEdit(id) {
   document.getElementById('editTitle').value = r.title;
   document.getElementById('editLevel').value = r.level;
   document.getElementById('editDesc').value = r.description || '';
+  document.getElementById('editArticleType').value = r.articleType || 'article';
   document.getElementById('editContent').value = contentToText(r.content);
   document.getElementById('editDeleteBtn').style.display = 'inline-flex';
+  onArticleTypeChange();
   populateGrammarSelect(r.grammarIds || []);
   document.getElementById('editModal').classList.add('open');
 }
@@ -370,8 +408,20 @@ function contentToText(content) {
   return content.map(seg => {
     if (seg.type === 'text') return seg.text;
     if (seg.type === 'grammar') return `{{g:${seg.grammarId}}}${seg.text}{{/g}}`;
+    if (seg.type === 'dialogue-line') return seg.speaker ? `${seg.speaker}：${seg.text}` : seg.text;
     return '';
-  }).join('');
+  }).join('\n');
+}
+
+function textToDialogue(text) {
+  return text.split('\n').filter(line => line.trim()).map(line => {
+    const sep = line.indexOf('：') !== -1 ? '：' : (line.indexOf(':') !== -1 ? ':' : null);
+    if (sep) {
+      const idx = line.indexOf(sep);
+      return { type: 'dialogue-line', speaker: line.slice(0, idx).trim(), text: line.slice(idx + sep.length).trim() };
+    }
+    return { type: 'dialogue-line', speaker: '', text: line.trim() };
+  });
 }
 
 function textToContent(text) {
@@ -446,17 +496,18 @@ function saveReading() {
 
   if (!title) { showToast('請填寫文章標題', 'error'); return; }
 
+  const articleType = document.getElementById('editArticleType').value;
   const grammarSel = document.getElementById('editGrammarIds');
   const grammarIds = Array.from(grammarSel.selectedOptions).map(o => o.value);
-  const content = textToContent(rawContent);
+  const content = articleType === 'dialogue' ? textToDialogue(rawContent) : textToContent(rawContent);
 
   const readings = Storage.getReadings();
   if (id) {
     const idx = readings.findIndex(r => r.id === id);
-    if (idx !== -1) readings[idx] = { ...readings[idx], title, level, description, grammarIds, content };
+    if (idx !== -1) readings[idx] = { ...readings[idx], title, level, description, grammarIds, content, articleType };
     showToast('文章已更新', 'success');
   } else {
-    readings.push({ id: Storage.genId('r'), title, level, description, grammarIds, content });
+    readings.push({ id: Storage.genId('r'), title, level, description, grammarIds, content, articleType });
     showToast('新增成功', 'success');
   }
 

@@ -238,7 +238,7 @@ function renderGrammar() {
         ${(g.examples || []).map(ex => `
           <div class="example-card">
             <div class="example-card-top">
-              <div class="example-sentence">${ex.sentence}</div>
+              <div class="example-sentence">${linkVocabInSentence(ex.sentence)}</div>
               <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
             </div>
             <div class="example-translation">${ex.translation}</div>
@@ -537,6 +537,25 @@ function setupEventListeners() {
 
 function copyId(id) {
   navigator.clipboard.writeText(id).then(() => showToast(`已複製 ID: ${id}`));
+}
+
+function linkVocabInSentence(sentence) {
+  const allVocab = Storage.getVocab();
+  const sorted = [...allVocab].sort((a, b) => b.kanji.length - a.kanji.length);
+  let result = sentence;
+  const placeholders = [];
+  for (const w of sorted) {
+    const kanji = w.kanji.split('／')[0].split('/')[0].trim();
+    if (!kanji || kanji.length < 1) continue;
+    const escaped = kanji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escaped, 'g'), match => {
+      const ph = `\x00${placeholders.length}\x00`;
+      placeholders.push(`<a href="index.html?search=${encodeURIComponent(kanji)}" class="ex-word-link" title="${w.meaning}">${match}</a>`);
+      return ph;
+    });
+  }
+  result = result.replace(/\x00(\d+)\x00/g, (_, i) => placeholders[+i]);
+  return result;
 }
 
 function speakWord(text) {

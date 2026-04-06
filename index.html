@@ -342,11 +342,22 @@ async function init() {
   // 載入雲端資料（若已登入），否則使用 localStorage
   const loggedIn = await Storage.loadFromCloud();
 
+  // Handle ?search= from external links (e.g. grammar page)
+  const urlSearch = new URLSearchParams(location.search).get('search');
+  if (urlSearch) {
+    currentSearch = urlSearch;
+    history.replaceState(null, '', location.pathname);
+  }
+
   populatePosTags();
   setupLevelRadios();
   updateSidebarCounts();
   renderVocab();
   setupEventListeners();
+
+  if (urlSearch) {
+    document.getElementById('searchInput').value = urlSearch;
+  }
 }
 
 function setupLevelRadios() {

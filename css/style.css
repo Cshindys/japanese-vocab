@@ -305,7 +305,7 @@ body {
 .card-badges { display: flex; gap: 5px; flex-wrap: wrap; }
 
 .card-kanji {
-  font-size: 2.4rem;
+  font-size: 1.8rem;
   font-weight: 800;
   line-height: 1;
   color: var(--text-primary);
@@ -1193,6 +1193,26 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
+
+/* ===== Dialogue ===== */
+.dialogue-container { display: flex; flex-direction: column; gap: 14px; padding: 8px 0; }
+.dialogue-line { display: flex; flex-direction: column; max-width: 78%; gap: 4px; }
+.dialogue-left  { align-self: flex-start; align-items: flex-start; }
+.dialogue-right { align-self: flex-end; align-items: flex-end; }
+.dialogue-speaker {
+  font-size: 0.72rem; font-weight: 700; color: var(--text-secondary);
+  padding: 0 4px; letter-spacing: 0.03em;
+}
+.dialogue-bubble {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 1rem;
+  font-family: var(--font-jp);
+  line-height: 1.6;
+  word-break: break-word;
+}
+.dialogue-left  .dialogue-bubble { background: var(--sidebar-bg); border: 1px solid var(--border); border-top-left-radius: 4px; }
+.dialogue-right .dialogue-bubble { background: #EBF4FF; border: 1px solid #BFDBFE; border-top-right-radius: 4px; color: #1e3a5f; }
 
 /* ===== Utility ===== */
 .hidden { display: none !important; }
