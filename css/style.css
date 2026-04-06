@@ -352,6 +352,23 @@ body {
 }
 .btn-play:hover { border-color: var(--accent); background: #EBF4FF; transform: scale(1.1); }
 .btn-play.playing { border-color: var(--accent); background: #EBF4FF; }
+.btn-card-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: none;
+  font-size: 0.8rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.vocab-card:hover .btn-card-delete { opacity: 1; }
+.btn-card-delete:hover { border-color: #EF4444; background: #FEF2F2; transform: scale(1.1); }
 
 /* ===== Buttons ===== */
 .btn {

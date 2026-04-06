@@ -490,9 +490,10 @@ function renderVocab() {
             <span class="badge ${getLevelClass(v.level)}">${v.level}</span>
             ${posBadges}
           </div>
-          <button class="btn-play" onclick="event.stopPropagation();speakWord('${escapeAttr(v.hiragana)}')" title="發音">
-            🔊
-          </button>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <button class="btn-play" onclick="event.stopPropagation();speakWord('${escapeAttr(v.hiragana)}')" title="發音">🔊</button>
+            <button class="btn-card-delete" onclick="event.stopPropagation();deleteVocabById('${v.id}')" title="刪除">🗑️</button>
+          </div>
         </div>
         <div class="card-kanji">${v.kanji}</div>
         <div class="card-hiragana">${v.hiragana}</div>
@@ -788,6 +789,15 @@ function deleteVocab() {
   const vocab = Storage.getVocab().filter(v => v.id !== id);
   Storage.saveVocab(vocab);
   closeEditModal();
+  renderVocab();
+  updateSidebarCounts();
+  showToast('已刪除', 'error');
+}
+
+function deleteVocabById(id) {
+  const v = Storage.getVocab().find(v => v.id === id);
+  if (!v || !confirm(`刪除「${v.kanji}」？`)) return;
+  Storage.saveVocab(Storage.getVocab().filter(v => v.id !== id));
   renderVocab();
   updateSidebarCounts();
   showToast('已刪除', 'error');
