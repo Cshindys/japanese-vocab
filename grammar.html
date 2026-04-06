@@ -38,7 +38,7 @@
     <div class="stat-row"><span>單字總數</span><span class="stat-val" id="statVocab">0</span></div>
     <div class="stat-row"><span>文法總數</span><span class="stat-val" id="statGrammar">0</span></div>
     <div class="stat-row"><span>文章總數</span><span class="stat-val" id="statReading">0</span></div>
-    <button onclick="if(confirm('確定重置為預設 N5 資料？自訂資料將遺失。')){Storage.resetAll();location.reload();}" style="margin-top:10px;width:100%;padding:5px;font-size:0.72rem;color:var(--text-light);background:none;border:1px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-jp);">↺ 重置為預設資料</button>
+    <button onclick="if(confirm('確定刪除所有文法？此操作無法復原。')){Storage.saveGrammar([]);location.reload();}" style="margin-top:10px;width:100%;padding:5px;font-size:0.72rem;color:#EF4444;background:none;border:1px dashed #EF4444;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-jp);">🗑️ 刪除所有文法</button>
   </div>
 </aside>
 

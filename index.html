@@ -490,10 +490,9 @@ function renderVocab() {
             <span class="badge ${getLevelClass(v.level)}">${v.level}</span>
             ${posBadges}
           </div>
-          <div style="display:flex;gap:4px;align-items:center;">
-            <button class="btn-play" onclick="event.stopPropagation();speakWord('${escapeAttr(v.hiragana)}')" title="發音">🔊</button>
-            <button class="btn-card-delete" onclick="event.stopPropagation();deleteVocabById('${v.id}')" title="刪除">🗑️</button>
-          </div>
+          <button class="btn-play" onclick="event.stopPropagation();speakWord('${escapeAttr(v.hiragana)}')" title="發音">
+            🔊
+          </button>
         </div>
         <div class="card-kanji">${v.kanji}</div>
         <div class="card-hiragana">${v.hiragana}</div>
@@ -628,6 +627,7 @@ function openDetail(id) {
   `;
 
   document.getElementById('detailModalFooter').innerHTML = `
+    <button class="btn btn-danger btn-sm" onclick="deleteVocabById('${v.id}');closeDetail()">🗑️ 刪除</button>
     <button class="btn btn-ghost" onclick="openEdit('${v.id}');closeDetail()">✏️ 編輯</button>
     <button class="btn btn-secondary" onclick="closeDetail()">關閉</button>
   `;
