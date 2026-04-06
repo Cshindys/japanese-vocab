@@ -237,16 +237,36 @@ function renderGrammar() {
         })()}
         ${g.detail ? `<div class="detail-rich">${renderDetail(g.detail)}</div>` : ''}
         <div class="detail-section-title" style="margin-top:16px;">例句</div>
-        ${(g.examples || []).map(ex => `
+        ${(g.examples || []).map(ex => {
+          if (ex.type === 'qa') {
+            return `
+            <div class="example-card">
+              <div class="ex-qa-block">
+                <div class="ex-qa-row">
+                  <span class="ex-qa-label ex-qa-q">問</span>
+                  <div class="ex-qa-text">${linkVocabInSentence(ex.sentence)}</div>
+                  <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
+                </div>
+                <div class="ex-qa-row">
+                  <span class="ex-qa-label ex-qa-a">答</span>
+                  <div class="ex-qa-text">${linkVocabInSentence(ex.answer||'')}</div>
+                  <button class="ex-play-btn" onclick="speakWord('${(ex.answer||'').replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
+                </div>
+              </div>
+              ${ex.translation ? `<div class="example-translation">${ex.translation}</div>` : ''}
+              ${ex.explanation ? `<div class="example-explanation">💡 ${ex.explanation.replace(/\n/g,'<br>')}</div>` : ''}
+            </div>`;
+          }
+          return `
           <div class="example-card">
             <div class="example-card-top">
               <div class="example-sentence">${linkVocabInSentence(ex.sentence)}</div>
               <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
             </div>
             <div class="example-translation">${ex.translation}</div>
-            ${ex.explanation ? `<div class="example-explanation">💡 ${ex.explanation}</div>` : ''}
-          </div>
-        `).join('') || '<p style="color:var(--text-light);font-size:0.85rem;">尚無例句</p>'}
+            ${ex.explanation ? `<div class="example-explanation">💡 ${ex.explanation.replace(/\n/g,'<br>')}</div>` : ''}
+          </div>`;
+        }).join('') || '<p style="color:var(--text-light);font-size:0.85rem;">尚無例句</p>'}
 
         ${(g.comparisons || []).length > 0 ? `
           <div class="detail-section-title" style="margin-top:20px;">⚔️ 相似文法比較</div>
@@ -439,13 +459,23 @@ function renderExamplesInForm(examples) {
 
 function addExampleRow(ex = {}) {
   const container = document.getElementById('examplesContainer');
+  const isQa = ex.type === 'qa';
   const div = document.createElement('div');
   div.className = 'example-item';
   div.innerHTML = `
     <button type="button" class="remove-example" onclick="this.closest('.example-item').remove()">✕</button>
-    <div class="form-group" style="margin-bottom:8px;">
-      <label class="form-label">例句（日文）</label>
-      <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：私は学生です。">
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <button type="button" class="ex-type-btn ${!isQa?'active':''}" onclick="setExType(this,'normal')">一般例句</button>
+      <button type="button" class="ex-type-btn ${isQa?'active':''}" onclick="setExType(this,'qa')">問答</button>
+    </div>
+    <input type="hidden" class="ex-type" value="${isQa?'qa':'normal'}">
+    <div class="form-group ex-sentence-group" style="margin-bottom:8px;">
+      <label class="form-label ex-sentence-label">${isQa?'問（Q）':'例句（日文）'}</label>
+      <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="${isQa?'例：これは何ですか。':'例：私は学生です。'}">
+    </div>
+    <div class="form-group ex-answer-group" style="margin-bottom:8px;${!isQa?'display:none;':''}">
+      <label class="form-label">答（A）</label>
+      <input type="text" class="form-input ex-answer" value="${escapeHtml(ex.answer||'')}" placeholder="例：これは本です。">
     </div>
     <div class="form-group" style="margin-bottom:8px;">
       <label class="form-label">翻譯（中文）</label>
@@ -453,10 +483,21 @@ function addExampleRow(ex = {}) {
     </div>
     <div class="form-group" style="margin-bottom:0;">
       <label class="form-label">說明（可選）</label>
-      <input type="text" class="form-input ex-explanation" value="${escapeHtml(ex.explanation||'')}" placeholder="例：「は」提示主題">
+      <textarea class="form-textarea ex-explanation" rows="2" style="min-height:unset;" placeholder="可多行說明，例：&#10;「は」提示主題&#10;「です」表示斷定語氣">${escapeHtml(ex.explanation||'')}</textarea>
     </div>
   `;
   container.appendChild(div);
+}
+
+function setExType(btn, type) {
+  const item = btn.closest('.example-item');
+  item.querySelectorAll('.ex-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  item.querySelector('.ex-type').value = type;
+  const isQa = type === 'qa';
+  item.querySelector('.ex-answer-group').style.display = isQa ? '' : 'none';
+  item.querySelector('.ex-sentence-label').textContent = isQa ? '問（Q）' : '例句（日文）';
+  item.querySelector('.ex-sentence').placeholder = isQa ? '例：これは何ですか。' : '例：私は学生です。';
 }
 
 function saveGrammar() {
@@ -484,11 +525,17 @@ function saveGrammar() {
   })).filter(c => c.target);
 
   const exItems = document.querySelectorAll('#examplesContainer .example-item');
-  const examples = Array.from(exItems).map(item => ({
-    sentence: item.querySelector('.ex-sentence').value.trim(),
-    translation: item.querySelector('.ex-translation').value.trim(),
-    explanation: item.querySelector('.ex-explanation').value.trim()
-  })).filter(e => e.sentence);
+  const examples = Array.from(exItems).map(item => {
+    const type = item.querySelector('.ex-type').value;
+    const base = {
+      type,
+      sentence: item.querySelector('.ex-sentence').value.trim(),
+      translation: item.querySelector('.ex-translation').value.trim(),
+      explanation: item.querySelector('.ex-explanation').value.trim()
+    };
+    if (type === 'qa') base.answer = item.querySelector('.ex-answer').value.trim();
+    return base;
+  }).filter(e => e.sentence);
 
   const grammar = Storage.getGrammar();
   if (id) {
