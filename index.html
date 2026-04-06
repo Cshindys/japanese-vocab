@@ -652,23 +652,28 @@ function closeDetail() {
 }
 
 // ===== Speech =====
+let _ttsAudio = null;
 function speakWord(text, btn) {
-  if (!window.speechSynthesis) { showToast('您的瀏覽器不支援語音功能', 'error'); return; }
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'ja-JP';
-  utter.rate = 0.9;
-  utter.pitch = 1;
-
+  if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; }
+  const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ja&client=tw-ob`;
+  const audio = new Audio(url);
+  _ttsAudio = audio;
   if (btn) {
     btn.textContent = '⏸';
-    utter.onend = () => { btn.textContent = '🔊'; };
+    audio.onended = () => { btn.textContent = '🔊'; _ttsAudio = null; };
+    audio.onerror  = () => { btn.textContent = '🔊'; _ttsAudio = null; _speakFallback(text); };
+  } else {
+    audio.onerror = () => _speakFallback(text);
   }
-
-  const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang.startsWith('ja'));
-  if (jpVoice) utter.voice = jpVoice;
-
+  audio.play().catch(() => _speakFallback(text));
+}
+function _speakFallback(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ja-JP'; utter.rate = 0.9;
+  const v = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ja'));
+  if (v) utter.voice = v;
   window.speechSynthesis.speak(utter);
 }
 

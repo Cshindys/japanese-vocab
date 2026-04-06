@@ -719,7 +719,17 @@ function linkVocabInSentence(sentence) {
   return result;
 }
 
+let _ttsAudio = null;
 function speakWord(text) {
+  if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; }
+  const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ja&client=tw-ob`;
+  const audio = new Audio(url);
+  _ttsAudio = audio;
+  audio.onerror = () => { _ttsAudio = null; _speakFallback(text); };
+  audio.onended = () => { _ttsAudio = null; };
+  audio.play().catch(() => _speakFallback(text));
+}
+function _speakFallback(text) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
