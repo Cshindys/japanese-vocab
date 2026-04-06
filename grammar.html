@@ -308,16 +308,43 @@ function renderGrammar() {
         ` : ''}
 
         ${getRelatedVocab(g.id)}
+        ${getRelatedGrammar(g)}
 
         ${g.author || g.sourceUrl ? `
-          <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border-light);font-size:0.75rem;color:var(--text-light);display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div class="grammar-source-bar">
             ${g.author ? `<span>✍️ ${g.author}</span>` : ''}
-            ${g.sourceUrl ? `<a href="${g.sourceUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">🔗 查看出處</a>` : ''}
+            ${g.sourceUrl ? `<a href="${g.sourceUrl}" target="_blank" rel="noopener">🔗 查看出處</a>` : ''}
           </div>
         ` : ''}
       </div>
     </div>
   `).join('');
+}
+
+function getRelatedGrammar(g) {
+  const allGrammar = Storage.getGrammar();
+  const seen = new Set();
+  const related = [];
+  // Grammar items this one compares with
+  (g.comparisons || []).forEach(c => {
+    const match = allGrammar.find(o => o.pattern === c.target && o.id !== g.id);
+    if (match && !seen.has(match.id)) { seen.add(match.id); related.push(match); }
+  });
+  // Grammar items that compare with this one
+  allGrammar.forEach(o => {
+    if (o.id === g.id || seen.has(o.id)) return;
+    if ((o.comparisons || []).some(c => c.target === g.pattern)) {
+      seen.add(o.id); related.push(o);
+    }
+  });
+  if (!related.length) return '';
+  return `
+    <div class="detail-section-title" style="margin-top:16px;">相關文法</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+      ${related.map(o => `
+        <a href="grammar.html#${o.id}" class="badge ${getLevelClass(o.level)}" style="text-decoration:none;cursor:pointer;">${o.pattern}</a>
+      `).join('')}
+    </div>`;
 }
 
 function getRelatedVocab(grammarId) {

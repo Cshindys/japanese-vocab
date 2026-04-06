@@ -1194,6 +1194,18 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
 
+/* ===== Grammar Source Bar ===== */
+.grammar-source-bar {
+  margin-top: 16px; padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border-light);
+  font-size: 0.75rem; color: var(--text-light);
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+}
+.grammar-source-bar a { color: var(--accent); text-decoration: none; }
+.grammar-source-bar a:hover { text-decoration: underline; }
+
 /* ===== Detail Rich Text ===== */
 .detail-rich { margin: 12px 0; font-size: 0.88rem; line-height: 1.85; color: var(--text-secondary); }
 .detail-para { margin: 0 0 10px; }
