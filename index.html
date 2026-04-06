@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日語學習本 — 單字庫</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+
+  <style>
+    /* 1. 讓「新增/編輯」和「詳情」彈窗變得更大、更寬敞 */
+    #editModal .modal, #detailModal .modal {
+      max-width: 850px !important; /* 寬度加大到 850px */
+      width: 90% !important;
+      max-height: 85vh !important; /* 限制最高為螢幕高度的 85% */
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    #editModal .modal-body, #detailModal .modal-body {
+      overflow-y: auto !important; /* 超出範圍時可以滾動 */
+      flex: 1;
+      padding-right: 10px; /* 留點空間給滾動條 */
+    }
+
+    /* 2. 讓網格模式下的卡片維持小巧，每行可以顯示更多張 */
+    .vocab-grid {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+      gap: 12px !important;
+    }
+
+    /* 如果切換到列表模式，依然維持列表該有的單欄排列 */
+    .vocab-grid.list-view {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+    }
+
+    /* Level radio buttons */
+    .level-radio-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: var(--font-jp);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .level-radio-btn input { display: none; }
+    .level-radio-btn[data-level="N5"].selected { border-color: var(--n5-color); background: var(--n5-bg); color: var(--n5-color); }
+    .level-radio-btn[data-level="N4"].selected { border-color: var(--n4-color); background: var(--n4-bg); color: var(--n4-color); }
+    .level-radio-btn[data-level="N3"].selected { border-color: var(--n3-color); background: var(--n3-bg); color: var(--n3-color); }
+    .level-radio-btn[data-level="N2"].selected { border-color: var(--n2-color); background: var(--n2-bg); color: var(--n2-color); }
+    .level-radio-btn[data-level="N1"].selected { border-color: var(--n1-color); background: var(--n1-bg); color: var(--n1-color); }
+    .level-radio-btn:not(.selected):hover { background: var(--hover-bg); }
+
+    /* Tag-style selection for categories */
+    .pos-tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #fafafa;
+    }
+    .pos-tag-btn {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .pos-tag-btn:hover {
+      background: #f0f0f0;
+    }
+    .pos-tag-btn.selected {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(47,128,237,0.25);
+    }
+
+    /* List View Styles */
+    .vocab-grid.list-view .vocab-card {
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 100px 150px 1fr auto;
+      align-items: center;
+      gap: 16px;
+      height: auto;
+    }
+    .vocab-grid.list-view .card-accent-bar {
+      width: 4px;
+      height: 100%;
+      top: 0;
+      left: 0;
+    }
+    .vocab-grid.list-view .card-inner {
+      display: contents;
+    }
+    .vocab-grid.list-view .card-header {
+      order: 4;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+    }
+    .vocab-grid.list-view .card-kanji {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    .vocab-grid.list-view .card-hiragana {
+      font-size: 0.85rem;
+      margin: 0;
+    }
+    .vocab-grid.list-view .card-meaning {
+      font-size: 0.9rem;
+      margin: 0;
+    }
+    .vocab-grid.list-view .card-footer {
+      display: none; 
+    }
+
+    /* View Toggle Buttons */
+    .view-toggle {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .view-btn {
+      padding: 6px 12px;
+      background: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .view-btn.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    /* Related Vocab Links */
+    .related-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #eef2f7;
+      color: var(--primary);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-right: 6px;
+      text-decoration: none;
+    }
+    .related-tag:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1><span class="logo-icon">🌸</span> 日語學習本</h1>
+    <p>JLPT 單字・文法・閱讀</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">學習內容</div>
+    <a class="nav-item active" href="index.html">
+      <span class="nav-icon">📚</span> 單字庫
+      <span class="nav-count" id="sidebarVocabCount">0</span>
+    </a>
+    <a class="nav-item" href="grammar.html">
+      <span class="nav-icon">📖</span> 文法
+      <span class="nav-count" id="sidebarGrammarCount">0</span>
+    </a>
+    <a class="nav-item" href="reading.html">
+      <span class="nav-icon">📄</span> 閱讀文章
+      <span class="nav-count" id="sidebarReadingCount">0</span>
+    </a>
+  </nav>
+  <div class="sidebar-stats">
+    <div class="stat-row">
+      <span>單字總數</span>
+      <span class="stat-val" id="statVocab">0</span>
+    </div>
+    <div class="stat-row">
+      <span>文法總數</span>
+      <span class="stat-val" id="statGrammar">0</span>
+    </div>
+    <div class="stat-row">
+      <span>文章總數</span>
+      <span class="stat-val" id="statReading">0</span>
+    </div>
+    <button onclick="deleteAllVocab()" style="margin-top:10px;width:100%;padding:5px;font-size:0.72rem;color:var(--text-light);background:none;border:1px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-jp);">🗑 刪除所有單字資料</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="hamburger" id="hamburger">☰</button>
+    <div class="topbar-title">📚 單字庫</div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" id="btnAddVocab">＋ 新增單字</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="searchInput" placeholder="搜尋單字、假名、意思...">
+      </div>
+      
+      <div class="view-toggle">
+        <button class="view-btn active" id="btnGridView" onclick="toggleView('grid')">⊞ 網格</button>
+        <button class="view-btn" id="btnListView" onclick="toggleView('list')">☰ 列表</button>
+      </div>
+
+      <div class="level-filters">
+        <button class="level-btn active-all" data-level="全部">全部</button>
+        <button class="level-btn" data-level="N5">N5</button>
+        <button class="level-btn" data-level="N4">N4</button>
+        <button class="level-btn" data-level="N3">N3</button>
+        <button class="level-btn" data-level="N2">N2</button>
+        <button class="level-btn" data-level="N1">N1</button>
+      </div>
+    </div>
+
+    <div class="results-count" id="resultsCount"></div>
+
+    <div class="vocab-grid" id="vocabGrid"></div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="editModalTitle">新增單字</div>
+      <button class="modal-close" id="editModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">漢字 / 單字</label>
+          <input type="text" class="form-input" id="editKanji" placeholder="例：学校">
+        </div>
+        <div class="form-group">
+          <label class="form-label">假名（讀音）</label>
+          <input type="text" class="form-input" id="editHiragana" placeholder="例：がっこう">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">JLPT 等級</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label class="level-radio-btn" data-level="N5"><input type="radio" name="editLevel" value="N5" checked> N5</label>
+          <label class="level-radio-btn" data-level="N4"><input type="radio" name="editLevel" value="N4"> N4</label>
+          <label class="level-radio-btn" data-level="N3"><input type="radio" name="editLevel" value="N3"> N3</label>
+          <label class="level-radio-btn" data-level="N2"><input type="radio" name="editLevel" value="N2"> N2</label>
+          <label class="level-radio-btn" data-level="N1"><input type="radio" name="editLevel" value="N1"> N1</label>
+        </div>
+        <input type="hidden" id="editLevel" value="N5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">詞性 / 分類（可多選）</label>
+        <div class="pos-tags-container" id="posTagsContainer"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">中文意思</label>
+        <input type="text" class="form-input" id="editMeaning" placeholder="例：學校">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">近義詞（多個請用逗號隔開）</label>
+          <input type="text" class="form-input" id="editSynonyms" placeholder="例：学校,学院">
+        </div>
+        <div class="form-group">
+          <label class="form-label">反義詞（多個請用逗號隔開）</label>
+          <input type="text" class="form-input" id="editAntonyms" placeholder="例：社会,校外">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">關聯文法（可多選，按住 Ctrl/Cmd）</label>
+        <select class="form-select" id="editGrammarIds" multiple style="min-height: 80px;"></select>
+      </div>
+
+      <div class="examples-section">
+        <div class="examples-label">例句</div>
+        <div id="examplesContainer"></div>
+        <button type="button" class="add-example-btn" id="addExampleBtn">＋ 新增例句</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="editCancelBtn">取消</button>
+      <button class="btn btn-danger btn-sm" id="editDeleteBtn" style="display:none;">刪除</button>
+      <button class="btn btn-primary" id="editSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">單字詳情</div>
+      <button class="modal-close" id="detailModalClose">✕</button>
+    </div>
+    <div class="modal-body" id="detailModalBody"></div>
+    <div class="modal-footer" id="detailModalFooter"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/data.js"></script>
+<script>
+// ===== State =====
+let currentLevel = '全部';
+let currentSearch = '';
+let currentView = 'grid'; // Grid or List view state
+
+// ===== Init =====
+async function init() {
+  // 載入雲端資料（若已登入），否則使用 localStorage
+  const loggedIn = await Storage.loadFromCloud();
+
+  populatePosTags();
+  setupLevelRadios();
+  updateSidebarCounts();
+  renderVocab();
+  setupEventListeners();
+}
+
+function setupLevelRadios() {
+  document.querySelectorAll('input[name="editLevel"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.getElementById('editLevel').value = radio.value;
+      document.querySelectorAll('.level-radio-btn').forEach(l => l.classList.remove('selected'));
+      radio.closest('.level-radio-btn').classList.add('selected');
+    });
+  });
+}
+
+function setEditLevel(val) {
+  document.getElementById('editLevel').value = val;
+  document.querySelectorAll('input[name="editLevel"]').forEach(r => {
+    r.checked = r.value === val;
+    r.closest('.level-radio-btn').classList.toggle('selected', r.value === val);
+  });
+}
+
+// 1. EASIER CATEGORY SELECT: Renders tags instead of a dropdown
+function populatePosTags() {
+  const container = document.getElementById('posTagsContainer');
+  const baseList = typeof POS_LIST !== 'undefined' ? POS_LIST : [];
+  const customCategories = ['家族', '身分', '職稱'];
+  const fullList = [...new Set([...baseList, ...customCategories])];
+  
+  container.innerHTML = fullList.map(p => `
+    <button type="button" class="pos-tag-btn" data-value="${p}" onclick="togglePosTag(this)">${p}</button>
+  `).join('');
+}
+
+function togglePosTag(btn) {
+  btn.classList.toggle('selected');
+}
+
+function getSelectedPosTags() {
+  const selected = [];
+  document.querySelectorAll('.pos-tag-btn.selected').forEach(btn => {
+    selected.push(btn.dataset.value);
+  });
+  return selected;
+}
+
+function setSelectedPosTags(tagsArray) {
+  document.querySelectorAll('.pos-tag-btn').forEach(btn => {
+    if (tagsArray.includes(btn.dataset.value)) {
+      btn.classList.add('selected');
+    } else {
+      btn.classList.remove('selected');
+    }
+  });
+}
+
+// 3. LIST VS GRID VIEW: Function to toggle views
+function toggleView(type) {
+  currentView = type;
+  const gridBtn = document.getElementById('btnGridView');
+  const listBtn = document.getElementById('btnListView');
+  const gridEl = document.getElementById('vocabGrid');
+
+  if (type === 'list') {
+    listBtn.classList.add('active');
+    gridBtn.classList.remove('active');
+    gridEl.classList.add('list-view');
+  } else {
+    gridBtn.classList.add('active');
+    listBtn.classList.remove('active');
+    gridEl.classList.remove('list-view');
+  }
+}
+
+function updateSidebarCounts() {
+  const vocab = Storage.getVocab();
+  const grammar = Storage.getGrammar();
+  const readings = Storage.getReadings();
+  document.getElementById('sidebarVocabCount').textContent = vocab.length;
+  document.getElementById('sidebarGrammarCount').textContent = grammar.length;
+  document.getElementById('sidebarReadingCount').textContent = readings.length;
+  document.getElementById('statVocab').textContent = vocab.length;
+  document.getElementById('statGrammar').textContent = grammar.length;
+  document.getElementById('statReading').textContent = readings.length;
+}
+
+// 刪除所有單字的雙重確認功能
+function deleteAllVocab() {
+  if (confirm('⚠️ 確定要刪除「所有」單字嗎？此動作將無法還原！')) {
+    if (confirm('🚨 請再次確認：您真的要清空所有單字資料嗎？')) {
+      Storage.saveVocab([]); // 存入空陣列，代表清空所有單字
+      location.reload(); // 重新整理畫面
+    }
+  }
+}
+
+// ===== Render =====
+function renderVocab() {
+  let data = Storage.getVocab();
+  const grammar = Storage.getGrammar();
+
+  if (currentLevel !== '全部') data = data.filter(v => v.level === currentLevel);
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    data = data.filter(v =>
+      v.kanji.toLowerCase().includes(q) ||
+      v.hiragana.toLowerCase().includes(q) ||
+      v.meaning.toLowerCase().includes(q)
+    );
+  }
+
+  const grid = document.getElementById('vocabGrid');
+  const countEl = document.getElementById('resultsCount');
+  countEl.textContent = `共 ${data.length} 個單字`;
+
+  if (data.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">📭</div>
+        <h3>找不到單字</h3>
+        <p>試試調整篩選條件，或新增第一個單字吧！</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = data.map(v => {
+    const gTags = (v.grammarIds || [])
+      .map(gid => grammar.find(g => g.id === gid))
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(g => `<span class="badge badge-grammar">${g.pattern}</span>`)
+      .join('');
+
+    const posArr = Array.isArray(v.partOfSpeech) ? v.partOfSpeech : (v.partOfSpeech ? [v.partOfSpeech] : []);
+    const posBadges = posArr.map(pos => `<span class="badge badge-pos">${pos}</span>`).join('');
+
+    return `
+    <div class="vocab-card card-level-${v.level.toLowerCase()}" onclick="openDetail('${v.id}')">
+      <div class="card-accent-bar"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-badges">
+            <span class="badge ${getLevelClass(v.level)}">${v.level}</span>
+            ${posBadges}
+          </div>
+          <button class="btn-play" onclick="event.stopPropagation();speakWord('${escapeAttr(v.hiragana)}')" title="發音">
+            🔊
+          </button>
+        </div>
+        <div class="card-kanji">${v.kanji}</div>
+        <div class="card-hiragana">${v.hiragana}</div>
+        <div class="card-meaning">${v.meaning}</div>
+        <div class="card-footer">
+          <span class="example-count">💬 ${(v.examples || []).length} 個例句</span>
+          ${gTags ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">${gTags}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Helper to make related words search clickable
+function searchVocab(word) {
+  closeDetail();
+  document.getElementById('searchInput').value = word;
+  currentSearch = word;
+  renderVocab();
+}
+
+// ===== Detail Modal =====
+function linkVocabInSentence(sentence, currentId, allVocab) {
+  // Sort by kanji length desc so longer matches win
+  const sorted = [...allVocab].sort((a, b) => b.kanji.length - a.kanji.length);
+  // Use a placeholder system to avoid re-matching inside replacements
+  let result = sentence;
+  const placeholders = [];
+  for (const w of sorted) {
+    const kanji = w.kanji.split('／')[0].split('/')[0].trim();
+    if (!kanji || kanji.length < 1) continue;
+    const escaped = kanji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escaped, 'g'), match => {
+      const isSelf = w.id === currentId;
+      const ph = `\x00${placeholders.length}\x00`;
+      placeholders.push(
+        isSelf
+          ? `<span class="ex-word-self" title="${w.meaning}">${match}</span>`
+          : `<span class="ex-word-link" onclick="closeDetail();searchVocab('${kanji}')" title="查詢：${w.meaning}">${match}</span>`
+      );
+      return ph;
+    });
+  }
+  // Restore placeholders
+  result = result.replace(/\x00(\d+)\x00/g, (_, i) => placeholders[+i]);
+  return result;
+}
+
+function grammarTagsForSentence(sentence, grammarIds, grammarList) {
+  return grammarIds
+    .map(gid => grammarList.find(g => g.id === gid))
+    .filter(g => {
+      if (!g) return false;
+      // Extract particle characters from pattern like 〜が〜 → が
+      const particles = [...g.pattern.matchAll(/[がをにへでとやもはのたい]/g)].map(m => m[0]);
+      return particles.length === 0 || particles.some(p => sentence.includes(p));
+    })
+    .map(g => `<a href="grammar.html#${g.id}" class="badge badge-grammar ex-grammar-badge" style="text-decoration:none;">${g.pattern}</a>`)
+    .join('');
+}
+
+function openDetail(id) {
+  const vocab = Storage.getVocab();
+  const grammar = Storage.getGrammar();
+  const v = vocab.find(x => x.id === id);
+  if (!v) return;
+
+  const posArr = Array.isArray(v.partOfSpeech) ? v.partOfSpeech : (v.partOfSpeech ? [v.partOfSpeech] : []);
+  const posBadges = posArr.map(pos => `<span class="badge badge-pos">${pos}</span>`).join('');
+
+  const synonymsHtml = v.synonyms
+    ? v.synonyms.split(',').map(s => s.trim()).filter(Boolean).map(s => `<span class="related-tag" onclick="searchVocab('${s}')">${s}</span>`).join('')
+    : '';
+  const antonymsHtml = v.antonyms
+    ? v.antonyms.split(',').map(a => a.trim()).filter(Boolean).map(a => `<span class="related-tag" onclick="searchVocab('${a}')">${a}</span>`).join('')
+    : '';
+
+  const grammarIds = v.grammarIds || [];
+
+  const examplesHtml = (v.examples || []).map(ex => {
+    const gBadges = grammarTagsForSentence(ex.sentence, grammarIds, grammar);
+    const linkedSentence = linkVocabInSentence(ex.sentence, v.id, vocab);
+    const explHtml = ex.explanation
+      ? ex.explanation.split('\n').filter(l => l.trim())
+          .map(l => `<div class="example-explanation">💡 ${l.trim()}</div>`).join('')
+      : '';
+    return `
+      <div class="example-card">
+        <div class="example-card-top">
+          <div style="flex:1;min-width:0;">
+            ${ex.hiragana ? `<div class="ex-hiragana">${ex.hiragana}</div>` : ''}
+            <div class="example-sentence">${linkedSentence}</div>
+          </div>
+          <button class="ex-play-btn" onclick="speakWord('${escapeAttr(ex.sentence)}')" title="朗讀">🔊</button>
+        </div>
+        <div class="example-translation">${ex.translation}</div>
+        ${explHtml}
+        ${gBadges ? `<div class="ex-grammar-row">${gBadges}</div>` : ''}
+      </div>`;
+  }).join('') || '<p style="color:var(--text-light);font-size:0.85rem;padding:8px 0;">尚無例句</p>';
+
+  const hasSynonyms = v.synonyms && v.synonyms.trim();
+  const hasAntonyms = v.antonyms && v.antonyms.trim();
+
+  document.getElementById('detailModalBody').innerHTML = `
+    <div class="vd-strip">
+      <div class="vd-accent vd-accent-${v.level.toLowerCase()}"></div>
+      <div class="vd-word">
+        <div class="vd-kanji">${v.kanji}</div>
+        <div class="vd-kana">${v.hiragana}</div>
+      </div>
+      <div class="vd-divider-v"></div>
+      <div class="vd-info">
+        <div class="vd-badges-row">
+          <span class="badge ${getLevelClass(v.level)}">${v.level}</span>
+          ${posBadges}
+        </div>
+        <div class="vd-meaning">${v.meaning}</div>
+      </div>
+      <button class="vd-play-btn" id="detailPlayBtn" onclick="speakWord('${escapeAttr(v.hiragana)}', this)" title="播放發音">🔊</button>
+    </div>
+
+    ${(hasSynonyms || hasAntonyms) ? `
+      <div class="vd-related-row" style="margin-bottom:10px;">
+        ${hasSynonyms ? `<div class="vd-related-item"><span class="vd-related-label">🔗 近義</span>${synonymsHtml}</div>` : ''}
+        ${hasAntonyms ? `<div class="vd-related-item"><span class="vd-related-label">🚫 反義</span>${antonymsHtml}</div>` : ''}
+      </div>
+    ` : ''}
+
+    <div class="vd-section-title">例句</div>
+    ${examplesHtml}
+  `;
+
+  document.getElementById('detailModalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="openEdit('${v.id}');closeDetail()">✏️ 編輯</button>
+    <button class="btn btn-secondary" onclick="closeDetail()">關閉</button>
+  `;
+
+  document.getElementById('detailModal').classList.add('open');
+  document.getElementById('detailModalBody').scrollTop = 0;
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('open');
+}
+
+// ===== Speech =====
+function speakWord(text, btn) {
+  if (!window.speechSynthesis) { showToast('您的瀏覽器不支援語音功能', 'error'); return; }
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ja-JP';
+  utter.rate = 0.9;
+  utter.pitch = 1;
+
+  if (btn) {
+    btn.textContent = '⏸';
+    utter.onend = () => { btn.textContent = '🔊'; };
+  }
+
+  const voices = window.speechSynthesis.getVoices();
+  const jpVoice = voices.find(v => v.lang.startsWith('ja'));
+  if (jpVoice) utter.voice = jpVoice;
+
+  window.speechSynthesis.speak(utter);
+}
+
+// ===== Edit Modal =====
+function openAdd() {
+  document.getElementById('editModalTitle').textContent = '新增單字';
+  document.getElementById('editId').value = '';
+  document.getElementById('editKanji').value = '';
+  document.getElementById('editHiragana').value = '';
+  setEditLevel('N5');
+  setSelectedPosTags([]); 
+  
+  document.getElementById('editMeaning').value = '';
+  document.getElementById('editSynonyms').value = '';
+  document.getElementById('editAntonyms').value = '';
+  document.getElementById('editDeleteBtn').style.display = 'none';
+  populateGrammarSelect([]);
+  renderExamplesInForm([]);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function openEdit(id) {
+  const vocab = Storage.getVocab();
+  const v = vocab.find(x => x.id === id);
+  if (!v) return;
+
+  document.getElementById('editModalTitle').textContent = '編輯單字';
+  document.getElementById('editId').value = v.id;
+  document.getElementById('editKanji').value = v.kanji;
+  document.getElementById('editHiragana').value = v.hiragana;
+  setEditLevel(v.level);
+
+  const posArr = Array.isArray(v.partOfSpeech) ? v.partOfSpeech : (v.partOfSpeech ? [v.partOfSpeech] : []);
+  setSelectedPosTags(posArr);
+
+  document.getElementById('editMeaning').value = v.meaning;
+  document.getElementById('editSynonyms').value = v.synonyms || '';
+  document.getElementById('editAntonyms').value = v.antonyms || '';
+  document.getElementById('editDeleteBtn').style.display = 'inline-flex';
+  populateGrammarSelect(v.grammarIds || []);
+  renderExamplesInForm(v.examples || []);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function populateGrammarSelect(selectedIds) {
+  const grammar = Storage.getGrammar();
+  const sel = document.getElementById('editGrammarIds');
+  sel.innerHTML = grammar.map(g => `
+    <option value="${g.id}" ${selectedIds.includes(g.id) ? 'selected' : ''}>${g.level} ${g.pattern} — ${g.meaning}</option>
+  `).join('');
+}
+
+function renderExamplesInForm(examples) {
+  const container = document.getElementById('examplesContainer');
+  container.innerHTML = '';
+  examples.forEach((ex, i) => addExampleRow(ex, i));
+}
+
+function addExampleRow(ex = {}, idx) {
+  const container = document.getElementById('examplesContainer');
+  const div = document.createElement('div');
+  div.className = 'example-item';
+  div.innerHTML = `
+    <button type="button" class="remove-example" onclick="this.closest('.example-item').remove()">✕</button>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">例句（日文）</label>
+      <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：学校に行きます。">
+    </div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">例句假名（可選，顯示在例句上方）</label>
+      <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：がっこうにいきます。">
+    </div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">翻譯（中文）</label>
+      <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="例：去學校。">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">說明（可選，多條說明請按下 Enter 換行）</label>
+      <textarea class="form-input ex-explanation" style="min-height: 60px; font-family: inherit; resize: vertical;" placeholder="每行一條說明，例：\n「に」表示移動的目的地\n「ます」表示客氣用法">${escapeHtml(ex.explanation||'')}</textarea>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function saveVocab() {
+  const id = document.getElementById('editId').value;
+  const kanji = document.getElementById('editKanji').value.trim();
+  const hiragana = document.getElementById('editHiragana').value.trim();
+  const level = document.getElementById('editLevel').value;
+
+  const partOfSpeech = getSelectedPosTags(); 
+  
+  const meaning = document.getElementById('editMeaning').value.trim();
+  const synonyms = document.getElementById('editSynonyms').value.trim();
+  const antonyms = document.getElementById('editAntonyms').value.trim();
+
+  if (!kanji || !meaning) { showToast('請填寫單字與意思', 'error'); return; }
+
+  const grammarSel = document.getElementById('editGrammarIds');
+  const grammarIds = Array.from(grammarSel.selectedOptions).map(o => o.value);
+
+  const exItems = document.querySelectorAll('#examplesContainer .example-item');
+  const examples = Array.from(exItems).map(item => ({
+    sentence: item.querySelector('.ex-sentence').value.trim(),
+    hiragana: item.querySelector('.ex-hiragana').value.trim(),
+    translation: item.querySelector('.ex-translation').value.trim(),
+    explanation: item.querySelector('.ex-explanation').value.trim()
+  })).filter(e => e.sentence);
+
+  const vocab = Storage.getVocab();
+  if (id) {
+    const idx = vocab.findIndex(v => v.id === id);
+    if (idx !== -1) vocab[idx] = { ...vocab[idx], kanji, hiragana, level, partOfSpeech, meaning, grammarIds, examples, synonyms, antonyms };
+    showToast('單字已更新', 'success');
+  } else {
+    vocab.push({ id: Storage.genId('v'), kanji, hiragana, level, partOfSpeech, meaning, grammarIds, examples, synonyms, antonyms });
+    showToast('新增成功', 'success');
+  }
+
+  Storage.saveVocab(vocab);
+  closeEditModal();
+  renderVocab();
+  updateSidebarCounts();
+}
+
+function deleteVocab() {
+  const id = document.getElementById('editId').value;
+  if (!id || !confirm('確定要刪除這個單字嗎？')) return;
+  const vocab = Storage.getVocab().filter(v => v.id !== id);
+  Storage.saveVocab(vocab);
+  closeEditModal();
+  renderVocab();
+  updateSidebarCounts();
+  showToast('已刪除', 'error');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+// ===== Event Listeners =====
+function setupEventListeners() {
+  document.getElementById('btnAddVocab').addEventListener('click', openAdd);
+  document.getElementById('editSaveBtn').addEventListener('click', saveVocab);
+  document.getElementById('editDeleteBtn').addEventListener('click', deleteVocab);
+  document.getElementById('editCancelBtn').addEventListener('click', closeEditModal);
+  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+  document.getElementById('detailModalClose').addEventListener('click', closeDetail);
+  document.getElementById('addExampleBtn').addEventListener('click', () => addExampleRow({}, document.querySelectorAll('#examplesContainer .example-item').length));
+
+  document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+  document.getElementById('detailModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDetail(); });
+
+  document.querySelectorAll('.level-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.level-btn').forEach(b => b.className = 'level-btn');
+      const lvl = btn.dataset.level;
+      currentLevel = lvl;
+      if (lvl === '全部') btn.classList.add('active-all');
+      else btn.classList.add('active-' + lvl.toLowerCase());
+      renderVocab();
+    });
+  });
+
+  let searchTimer;
+  document.getElementById('searchInput').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      currentSearch = e.target.value.trim();
+      renderVocab();
+    }, 250);
+  });
+
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  hamburger.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  });
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  });
+
+  if (window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    window.speechSynthesis.getVoices();
+  }
+}
+
+// ===== Helpers =====
+function getLevelClass(level) {
+  return 'badge-' + level.toLowerCase();
+}
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeAttr(str) {
+  return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

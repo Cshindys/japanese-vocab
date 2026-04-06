@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日語學習本 — 閱讀文章</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1><span class="logo-icon">🌸</span> 日語學習本</h1>
+    <p>JLPT 單字・文法・閱讀</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">學習內容</div>
+    <a class="nav-item" href="index.html"><span class="nav-icon">📚</span> 單字庫 <span class="nav-count" id="sidebarVocabCount">0</span></a>
+    <a class="nav-item" href="grammar.html"><span class="nav-icon">📖</span> 文法 <span class="nav-count" id="sidebarGrammarCount">0</span></a>
+    <a class="nav-item active" href="reading.html"><span class="nav-icon">📄</span> 閱讀文章 <span class="nav-count" id="sidebarReadingCount">0</span></a>
+  </nav>
+  <div class="sidebar-stats">
+    <div class="stat-row"><span>單字總數</span><span class="stat-val" id="statVocab">0</span></div>
+    <div class="stat-row"><span>文法總數</span><span class="stat-val" id="statGrammar">0</span></div>
+    <div class="stat-row"><span>文章總數</span><span class="stat-val" id="statReading">0</span></div>
+    <button onclick="if(confirm('確定重置為預設 N5 資料？自訂資料將遺失。')){Storage.resetAll();location.reload();}" style="margin-top:10px;width:100%;padding:5px;font-size:0.72rem;color:var(--text-light);background:none;border:1px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-jp);">↺ 重置為預設資料</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="hamburger" id="hamburger">☰</button>
+    <div class="topbar-title" id="topbarTitle">📄 閱讀文章</div>
+    <div class="topbar-actions" id="topbarActions">
+      <button class="btn btn-primary" id="btnAddReading">＋ 新增文章</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- List View -->
+    <div id="listView">
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="searchInput" placeholder="搜尋文章標題、說明...">
+        </div>
+        <div class="level-filters">
+          <button class="level-btn active-all" data-level="全部">全部</button>
+          <button class="level-btn" data-level="N5">N5</button>
+          <button class="level-btn" data-level="N4">N4</button>
+          <button class="level-btn" data-level="N3">N3</button>
+          <button class="level-btn" data-level="N2">N2</button>
+          <button class="level-btn" data-level="N1">N1</button>
+        </div>
+      </div>
+      <div class="results-count" id="resultsCount"></div>
+      <div class="reading-grid" id="readingGrid"></div>
+    </div>
+
+    <!-- Article View -->
+    <div id="articleView" class="hidden">
+      <button class="article-back" id="backBtn">← 返回文章列表</button>
+      <div class="article-container">
+        <div class="article-title" id="articleTitle"></div>
+        <div class="article-meta" id="articleMeta"></div>
+        <div class="article-body" id="articleBody"></div>
+        <div class="article-grammar-used" id="articleGrammarUsed"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Grammar Tooltip -->
+<div class="grammar-tooltip" id="grammarTooltip">
+  <div class="tooltip-pattern" id="tooltipPattern"></div>
+  <div class="tooltip-meaning" id="tooltipMeaning"></div>
+  <a class="tooltip-link" id="tooltipLink">→ 查看完整文法說明</a>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <div class="modal-title" id="editModalTitle">新增文章</div>
+      <button class="modal-close" id="editModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">文章標題</label>
+          <input type="text" class="form-input" id="editTitle" placeholder="例：自己紹介">
+        </div>
+        <div class="form-group">
+          <label class="form-label">難度等級</label>
+          <select class="form-select" id="editLevel">
+            <option value="N5">N5</option>
+            <option value="N4">N4</option>
+            <option value="N3">N3</option>
+            <option value="N2">N2</option>
+            <option value="N1">N1</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">文章說明（摘要）</label>
+        <input type="text" class="form-input" id="editDesc" placeholder="例：田中的自我介紹，包含基本 N5 句型">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">文章內容</label>
+        <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;line-height:1.6;background:var(--sidebar-bg);padding:8px 12px;border-radius:var(--radius);border:1px solid var(--border-light);">
+          💡 <strong>標記文法重點方法：</strong>在文章框中選取文字，再點下方的文法按鈕，系統會自動幫你加上高亮標記。
+        </div>
+
+        <!-- Grammar picker -->
+        <div style="margin-bottom:8px;">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">點擊文法 → 插入標記（先在文章中選取要高亮的文字）</div>
+          <div id="grammarPickerBtns" style="display:flex;flex-wrap:wrap;gap:5px;max-height:110px;overflow-y:auto;padding:4px 0;"></div>
+        </div>
+
+        <textarea class="form-textarea" id="editContent" style="min-height:200px;font-family:var(--font-jp);" placeholder="在此輸入日文文章內容...&#10;&#10;例：&#10;私は田中です。学生です。&#10;&#10;選取「は」後點上方的【〜は〜です】按鈕，即可標記文法重點。"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">本文使用的文法（可多選，按住 Ctrl/Cmd）</label>
+        <select class="form-select" id="editGrammarIds" multiple style="min-height:90px;"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="editCancelBtn">取消</button>
+      <button class="btn btn-danger btn-sm" id="editDeleteBtn" style="display:none;">刪除</button>
+      <button class="btn btn-primary" id="editSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/data.js"></script>
+<script>
+let currentLevel = '全部';
+let currentSearch = '';
+let currentArticleId = null;
+
+async function init() {
+  await Storage.loadFromCloud();
+  updateSidebarCounts();
+  renderReadings();
+  setupEventListeners();
+}
+
+function updateSidebarCounts() {
+  const vocab = Storage.getVocab();
+  const grammar = Storage.getGrammar();
+  const readings = Storage.getReadings();
+  document.getElementById('sidebarVocabCount').textContent = vocab.length;
+  document.getElementById('sidebarGrammarCount').textContent = grammar.length;
+  document.getElementById('sidebarReadingCount').textContent = readings.length;
+  document.getElementById('statVocab').textContent = vocab.length;
+  document.getElementById('statGrammar').textContent = grammar.length;
+  document.getElementById('statReading').textContent = readings.length;
+}
+
+// ===== Render List =====
+function renderReadings() {
+  let data = Storage.getReadings();
+  if (currentLevel !== '全部') data = data.filter(r => r.level === currentLevel);
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    data = data.filter(r => r.title.toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q));
+  }
+
+  const grid = document.getElementById('readingGrid');
+  document.getElementById('resultsCount').textContent = `共 ${data.length} 篇文章`;
+  const grammar = Storage.getGrammar();
+
+  if (data.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">📭</div>
+        <h3>找不到文章</h3>
+        <p>試試調整篩選條件，或新增第一篇文章吧！</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = data.map(r => {
+    const gTags = (r.grammarIds || [])
+      .slice(0, 3)
+      .map(gid => grammar.find(g => g.id === gid))
+      .filter(Boolean)
+      .map(g => `<span class="grammar-tag">${g.pattern}</span>`)
+      .join('');
+
+    const preview = getTextPreview(r);
+
+    return `
+    <div class="reading-card" onclick="openArticle('${r.id}')">
+      <div class="reading-card-title">${r.title}</div>
+      <div class="reading-card-preview">${preview}</div>
+      <div class="reading-card-footer">
+        <span class="badge ${getLevelClass(r.level)}">${r.level}</span>
+        <div class="grammar-tags">${gTags}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getTextPreview(r) {
+  if (!r.content || !Array.isArray(r.content)) {
+    return r.description || '';
+  }
+  return r.content.map(seg => seg.text || '').join('').replace(/\n/g, ' ').substring(0, 120) + '...';
+}
+
+// ===== Article View =====
+function openArticle(id) {
+  const readings = Storage.getReadings();
+  const r = readings.find(x => x.id === id);
+  if (!r) return;
+
+  currentArticleId = id;
+  const grammar = Storage.getGrammar();
+
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('articleView').classList.remove('hidden');
+  document.getElementById('topbarTitle').textContent = '📄 ' + r.title;
+  document.getElementById('topbarActions').innerHTML = `
+    <button class="btn btn-ghost" onclick="openEdit('${r.id}')">✏️ 編輯</button>
+    <button class="btn btn-primary" id="btnAddReading2">＋ 新增文章</button>
+  `;
+  document.getElementById('btnAddReading2').addEventListener('click', openAdd);
+
+  document.getElementById('articleTitle').textContent = r.title;
+  document.getElementById('articleMeta').innerHTML = `
+    <span class="badge ${getLevelClass(r.level)}">${r.level}</span>
+    <span style="font-size:0.82rem;color:var(--text-secondary);">${r.description || ''}</span>
+  `;
+
+  // Render content
+  document.getElementById('articleBody').innerHTML = renderContent(r.content, grammar);
+
+  // Grammar used list
+  const grammarUsed = (r.grammarIds || [])
+    .map(gid => grammar.find(g => g.id === gid))
+    .filter(Boolean);
+
+  if (grammarUsed.length > 0) {
+    document.getElementById('articleGrammarUsed').innerHTML = `
+      <h3>本文使用的文法</h3>
+      <div class="grammar-ref-list">
+        ${grammarUsed.map(g => `
+          <a href="grammar.html#${g.id}" class="grammar-ref-item">
+            <span class="badge ${getLevelClass(g.level)}">${g.level}</span>
+            <span>${g.pattern}</span>
+            <span style="color:var(--text-secondary);font-size:0.78rem;">${g.meaning}</span>
+          </a>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    document.getElementById('articleGrammarUsed').innerHTML = '';
+  }
+
+  setupTooltip();
+  window.scrollTo(0, 0);
+}
+
+function renderContent(content, grammar) {
+  if (!content || !Array.isArray(content)) return '';
+
+  let html = '';
+  let paragraphs = [''];
+
+  content.forEach(seg => {
+    if (seg.type === 'text') {
+      const parts = seg.text.split('\n\n');
+      parts.forEach((part, i) => {
+        if (i > 0) paragraphs.push('');
+        paragraphs[paragraphs.length - 1] += part.replace(/\n/g, '<br>');
+      });
+    } else if (seg.type === 'grammar') {
+      const g = grammar.find(x => x.id === seg.grammarId);
+      const title = g ? `${g.pattern}：${g.meaning}` : '';
+      paragraphs[paragraphs.length - 1] += `<span class="grammar-highlight" data-grammar-id="${seg.grammarId}" data-pattern="${escapeAttr(g ? g.pattern : '')}" data-meaning="${escapeAttr(g ? g.meaning : '')}">${seg.text}</span>`;
+    }
+  });
+
+  return paragraphs.filter(p => p.trim()).map(p => `<p>${p}</p>`).join('');
+}
+
+function closeArticle() {
+  currentArticleId = null;
+  document.getElementById('listView').classList.remove('hidden');
+  document.getElementById('articleView').classList.add('hidden');
+  document.getElementById('topbarTitle').textContent = '📄 閱讀文章';
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" id="btnAddReading">＋ 新增文章</button>`;
+  document.getElementById('btnAddReading').addEventListener('click', openAdd);
+}
+
+// ===== Tooltip =====
+function setupTooltip() {
+  const tooltip = document.getElementById('grammarTooltip');
+  let hideTimer;
+
+  document.querySelectorAll('.grammar-highlight').forEach(el => {
+    el.addEventListener('mouseenter', (e) => {
+      clearTimeout(hideTimer);
+      const pattern = el.dataset.pattern;
+      const meaning = el.dataset.meaning;
+      const grammarId = el.dataset.grammarId;
+
+      document.getElementById('tooltipPattern').textContent = pattern;
+      document.getElementById('tooltipMeaning').textContent = meaning;
+      document.getElementById('tooltipLink').href = `grammar.html#${grammarId}`;
+
+      const rect = el.getBoundingClientRect();
+      tooltip.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+      tooltip.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
+      tooltip.classList.add('visible');
+    });
+
+    el.addEventListener('mouseleave', () => {
+      hideTimer = setTimeout(() => tooltip.classList.remove('visible'), 300);
+    });
+  });
+
+  tooltip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+  tooltip.addEventListener('mouseleave', () => { tooltip.classList.remove('visible'); });
+}
+
+// ===== Edit Modal =====
+function openAdd() {
+  document.getElementById('editModalTitle').textContent = '新增文章';
+  document.getElementById('editId').value = '';
+  document.getElementById('editTitle').value = '';
+  document.getElementById('editLevel').value = 'N5';
+  document.getElementById('editDesc').value = '';
+  document.getElementById('editContent').value = '';
+  document.getElementById('editDeleteBtn').style.display = 'none';
+  populateGrammarSelect([]);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function openEdit(id) {
+  const readings = Storage.getReadings();
+  const r = readings.find(x => x.id === id);
+  if (!r) return;
+
+  document.getElementById('editModalTitle').textContent = '編輯文章';
+  document.getElementById('editId').value = r.id;
+  document.getElementById('editTitle').value = r.title;
+  document.getElementById('editLevel').value = r.level;
+  document.getElementById('editDesc').value = r.description || '';
+  document.getElementById('editContent').value = contentToText(r.content);
+  document.getElementById('editDeleteBtn').style.display = 'inline-flex';
+  populateGrammarSelect(r.grammarIds || []);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function contentToText(content) {
+  if (!content || !Array.isArray(content)) return '';
+  return content.map(seg => {
+    if (seg.type === 'text') return seg.text;
+    if (seg.type === 'grammar') return `{{g:${seg.grammarId}}}${seg.text}{{/g}}`;
+    return '';
+  }).join('');
+}
+
+function textToContent(text) {
+  // Parse {{g:id}}text{{/g}} markers
+  const parts = [];
+  const regex = /\{\{g:([^}]+)\}\}([\s\S]*?)\{\{\/g\}\}/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', text: text.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'grammar', grammarId: match[1], text: match[2] });
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', text: text.slice(lastIndex) });
+  }
+
+  return parts;
+}
+
+function populateGrammarSelect(selectedIds) {
+  const grammar = Storage.getGrammar();
+  const sel = document.getElementById('editGrammarIds');
+  sel.innerHTML = grammar.map(g => `
+    <option value="${g.id}" ${selectedIds.includes(g.id) ? 'selected' : ''}>${g.level} ${g.pattern} — ${g.meaning}</option>
+  `).join('');
+  populateGrammarPicker(grammar);
+}
+
+function populateGrammarPicker(grammar) {
+  const container = document.getElementById('grammarPickerBtns');
+  container.innerHTML = grammar.map(g => `
+    <button type="button"
+      onclick="insertGrammarTag('${g.id}', '${escapeAttr(g.pattern)}')"
+      title="ID: ${g.id} | ${g.meaning}"
+      style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:14px;border:1.5px solid var(--grammar-color);background:var(--grammar-bg);color:var(--grammar-color);font-size:0.75rem;font-weight:600;font-family:var(--font-jp);cursor:pointer;transition:all 0.15s;white-space:nowrap;">
+      <span style="font-size:0.62rem;opacity:0.7;">${g.level}</span> ${g.pattern}
+    </button>
+  `).join('');
+}
+
+function insertGrammarTag(grammarId, pattern) {
+  const ta = document.getElementById('editContent');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const selected = ta.value.substring(start, end);
+  const tag = selected
+    ? `{{g:${grammarId}}}${selected}{{/g}}`
+    : `{{g:${grammarId}}}在此輸入要高亮的文字{{/g}}`;
+  ta.value = ta.value.substring(0, start) + tag + ta.value.substring(end);
+  // Auto-select the inserted text for easy replacement
+  const newStart = start + `{{g:${grammarId}}}`.length;
+  const newEnd = selected ? newStart + selected.length : newStart + 12;
+  ta.focus();
+  ta.setSelectionRange(newStart, newEnd);
+  // Auto-select this grammar in the multi-select
+  const opt = document.querySelector(`#editGrammarIds option[value="${grammarId}"]`);
+  if (opt) opt.selected = true;
+  showToast(`已插入【${pattern}】標記`, 'success');
+}
+
+function saveReading() {
+  const id = document.getElementById('editId').value;
+  const title = document.getElementById('editTitle').value.trim();
+  const level = document.getElementById('editLevel').value;
+  const description = document.getElementById('editDesc').value.trim();
+  const rawContent = document.getElementById('editContent').value;
+
+  if (!title) { showToast('請填寫文章標題', 'error'); return; }
+
+  const grammarSel = document.getElementById('editGrammarIds');
+  const grammarIds = Array.from(grammarSel.selectedOptions).map(o => o.value);
+  const content = textToContent(rawContent);
+
+  const readings = Storage.getReadings();
+  if (id) {
+    const idx = readings.findIndex(r => r.id === id);
+    if (idx !== -1) readings[idx] = { ...readings[idx], title, level, description, grammarIds, content };
+    showToast('文章已更新', 'success');
+  } else {
+    readings.push({ id: Storage.genId('r'), title, level, description, grammarIds, content });
+    showToast('新增成功', 'success');
+  }
+
+  Storage.saveReadings(readings);
+  closeEditModal();
+  renderReadings();
+  updateSidebarCounts();
+
+  if (id && id === currentArticleId) openArticle(id);
+}
+
+function deleteReading() {
+  const id = document.getElementById('editId').value;
+  if (!id || !confirm('確定要刪除這篇文章嗎？')) return;
+  const readings = Storage.getReadings().filter(r => r.id !== id);
+  Storage.saveReadings(readings);
+  closeEditModal();
+  if (currentArticleId === id) closeArticle();
+  renderReadings();
+  updateSidebarCounts();
+  showToast('已刪除', 'error');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+function setupEventListeners() {
+  document.getElementById('btnAddReading').addEventListener('click', openAdd);
+  document.getElementById('editSaveBtn').addEventListener('click', saveReading);
+  document.getElementById('editDeleteBtn').addEventListener('click', deleteReading);
+  document.getElementById('editCancelBtn').addEventListener('click', closeEditModal);
+  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+  document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+  document.getElementById('backBtn').addEventListener('click', closeArticle);
+
+  document.querySelectorAll('.level-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.level-btn').forEach(b => b.className = 'level-btn');
+      const lvl = btn.dataset.level;
+      currentLevel = lvl;
+      if (lvl === '全部') btn.classList.add('active-all');
+      else btn.classList.add('active-' + lvl.toLowerCase());
+      renderReadings();
+    });
+  });
+
+  let searchTimer;
+  document.getElementById('searchInput').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentSearch = e.target.value.trim(); renderReadings(); }, 250);
+  });
+
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  hamburger.addEventListener('click', () => { sidebar.classList.toggle('open'); overlay.classList.toggle('show'); });
+  overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('show'); });
+}
+
+function escapeAttr(str) {
+  return (str||'').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

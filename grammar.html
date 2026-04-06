@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日語學習本 — 文法</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1><span class="logo-icon">🌸</span> 日語學習本</h1>
+    <p>JLPT 單字・文法・閱讀</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">學習內容</div>
+    <a class="nav-item" href="index.html">
+      <span class="nav-icon">📚</span> 單字庫
+      <span class="nav-count" id="sidebarVocabCount">0</span>
+    </a>
+    <a class="nav-item active" href="grammar.html">
+      <span class="nav-icon">📖</span> 文法
+      <span class="nav-count" id="sidebarGrammarCount">0</span>
+    </a>
+    <a class="nav-item" href="reading.html">
+      <span class="nav-icon">📄</span> 閱讀文章
+      <span class="nav-count" id="sidebarReadingCount">0</span>
+    </a>
+  </nav>
+  <div class="sidebar-stats">
+    <div class="stat-row"><span>單字總數</span><span class="stat-val" id="statVocab">0</span></div>
+    <div class="stat-row"><span>文法總數</span><span class="stat-val" id="statGrammar">0</span></div>
+    <div class="stat-row"><span>文章總數</span><span class="stat-val" id="statReading">0</span></div>
+    <button onclick="if(confirm('確定重置為預設 N5 資料？自訂資料將遺失。')){Storage.resetAll();location.reload();}" style="margin-top:10px;width:100%;padding:5px;font-size:0.72rem;color:var(--text-light);background:none;border:1px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-jp);">↺ 重置為預設資料</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="hamburger" id="hamburger">☰</button>
+    <div class="topbar-title">📖 文法</div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" id="btnAddGrammar">＋ 新增文法</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="searchInput" placeholder="搜尋文法型、說明...">
+      </div>
+      <div class="level-filters">
+        <button class="level-btn active-all" data-level="全部">全部</button>
+        <button class="level-btn" data-level="N5">N5</button>
+        <button class="level-btn" data-level="N4">N4</button>
+        <button class="level-btn" data-level="N3">N3</button>
+        <button class="level-btn" data-level="N2">N2</button>
+        <button class="level-btn" data-level="N1">N1</button>
+      </div>
+    </div>
+
+    <div class="results-count" id="resultsCount"></div>
+    <div class="grammar-list" id="grammarList"></div>
+  </div>
+</main>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="editModalTitle">新增文法</div>
+      <button class="modal-close" id="editModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">文法句型</label>
+          <input type="text" class="form-input" id="editPattern" placeholder="例：〜は〜です">
+        </div>
+        <div class="form-group">
+          <label class="form-label">JLPT 等級</label>
+          <select class="form-select" id="editLevel">
+            <option value="N5">N5</option>
+            <option value="N4">N4</option>
+            <option value="N3">N3</option>
+            <option value="N2">N2</option>
+            <option value="N1">N1</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">意思說明</label>
+        <input type="text" class="form-input" id="editMeaning" placeholder="例：〜是〜（表示斷定）">
+      </div>
+      <div class="form-group">
+        <label class="form-label">接續方式（簡）</label>
+        <input type="text" class="form-input" id="editConjugation" placeholder="例：名詞 + は + 名詞 + です">
+      </div>
+      <div class="form-group">
+        <label class="form-label">詳細接續</label>
+        <input type="text" class="form-input" id="editDetailedConjugation" placeholder="例：名詞＋格助詞ヤ＋名詞（＋副助詞ナド）">
+      </div>
+      <div class="form-group">
+        <label class="form-label">詳細說明</label>
+        <textarea class="form-textarea" id="editDetail" placeholder="詳細描述用法、注意事項、與相似文法的區別等..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">作者 / 來源名稱</label>
+          <input type="text" class="form-input" id="editAuthor" placeholder="例：時雨の町">
+        </div>
+        <div class="form-group">
+          <label class="form-label">出處 URL</label>
+          <input type="url" class="form-input" id="editSourceUrl" placeholder="例：https://www.sigure.tw/...">
+        </div>
+      </div>
+
+      <div class="examples-section" style="margin-top:16px;">
+        <div class="examples-label">⚔️ 相似文法比較</div>
+        <div id="comparisonsContainer"></div>
+        <button type="button" class="add-example-btn" id="addComparisonBtn">＋ 新增比較</button>
+      </div>
+
+      <div class="examples-section">
+        <div class="examples-label">例句</div>
+        <div id="examplesContainer"></div>
+        <button type="button" class="add-example-btn" id="addExampleBtn">＋ 新增例句</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="editCancelBtn">取消</button>
+      <button class="btn btn-danger btn-sm" id="editDeleteBtn" style="display:none;">刪除</button>
+      <button class="btn btn-primary" id="editSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/data.js"></script>
+<script>
+let currentLevel = '全部';
+let currentSearch = '';
+
+async function init() {
+  await Storage.loadFromCloud();
+  updateSidebarCounts();
+  renderGrammar();
+  setupEventListeners();
+
+  // Handle hash anchor (from reading page links)
+  if (window.location.hash) {
+    setTimeout(() => {
+      const id = window.location.hash.slice(1);
+      const card = document.getElementById('gc-' + id);
+      if (card) {
+        card.classList.add('expanded');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
+}
+
+function updateSidebarCounts() {
+  const vocab = Storage.getVocab();
+  const grammar = Storage.getGrammar();
+  const readings = Storage.getReadings();
+  document.getElementById('sidebarVocabCount').textContent = vocab.length;
+  document.getElementById('sidebarGrammarCount').textContent = grammar.length;
+  document.getElementById('sidebarReadingCount').textContent = readings.length;
+  document.getElementById('statVocab').textContent = vocab.length;
+  document.getElementById('statGrammar').textContent = grammar.length;
+  document.getElementById('statReading').textContent = readings.length;
+}
+
+function renderGrammar() {
+  let data = Storage.getGrammar();
+
+  if (currentLevel !== '全部') data = data.filter(g => g.level === currentLevel);
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    data = data.filter(g =>
+      g.pattern.toLowerCase().includes(q) ||
+      g.meaning.toLowerCase().includes(q) ||
+      (g.conjugation || '').toLowerCase().includes(q)
+    );
+  }
+
+  const list = document.getElementById('grammarList');
+  document.getElementById('resultsCount').textContent = `共 ${data.length} 條文法`;
+
+  if (data.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>找不到文法</h3>
+        <p>試試調整篩選條件，或新增第一條文法吧！</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = data.map(g => `
+    <div class="grammar-card" id="gc-${g.id}">
+      <div class="grammar-card-header" onclick="toggleGrammar('gc-${g.id}')">
+        <span class="badge ${getLevelClass(g.level)}">${g.level}</span>
+        <span class="grammar-pattern">${g.pattern}</span>
+        <span class="grammar-meaning-short">${g.meaning}</span>
+        <div class="grammar-card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="copyId('${g.id}')" title="複製文法 ID（用於閱讀文章標記）">📋</button>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="openEdit('${g.id}')" title="編輯">✏️</button>
+        </div>
+        <span class="grammar-chevron">▼</span>
+      </div>
+      <div class="grammar-card-body">
+        ${g.conjugation ? `
+          <div class="grammar-conjugation" style="margin-top:14px;">
+            <strong>接續：</strong>${g.conjugation}
+          </div>
+        ` : ''}
+        ${g.detailedConjugation ? `
+          <div class="grammar-conjugation" style="margin-top:6px;border-left-color:#7C3AED;">
+            <strong>詳細接續：</strong>${g.detailedConjugation}
+          </div>
+        ` : ''}
+        ${g.detail ? `
+          <div style="margin:12px 0;padding:12px;background:var(--sidebar-bg);border-radius:var(--radius);font-size:0.88rem;color:var(--text-secondary);line-height:1.8;white-space:pre-wrap;">${g.detail}</div>
+        ` : ''}
+        <div class="detail-section-title" style="margin-top:16px;">例句</div>
+        ${(g.examples || []).map(ex => `
+          <div class="example-card">
+            <div class="example-card-top">
+              <div class="example-sentence">${ex.sentence}</div>
+              <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
+            </div>
+            <div class="example-translation">${ex.translation}</div>
+            ${ex.explanation ? `<div class="example-explanation">💡 ${ex.explanation}</div>` : ''}
+          </div>
+        `).join('') || '<p style="color:var(--text-light);font-size:0.85rem;">尚無例句</p>'}
+
+        ${(g.comparisons || []).length > 0 ? `
+          <div class="detail-section-title" style="margin-top:20px;">⚔️ 相似文法比較</div>
+          ${(g.comparisons).map(c => `
+            <div class="comparison-card">
+              <div class="comparison-header">
+                <div class="comp-col comp-col-this">
+                  <div class="comp-tag comp-tag-this">✅ 本文法</div>
+                  <div class="comp-pattern">${g.pattern}</div>
+                </div>
+                <div class="comp-vs-wrap"><div class="comp-vs-badge">VS</div></div>
+                <div class="comp-col comp-col-target">
+                  <div class="comp-tag comp-tag-target">⚠️ 相似文法</div>
+                  <div class="comp-pattern">${c.target}</div>
+                </div>
+              </div>
+              <div class="comp-row">
+                <div class="comp-row-label">📌 核心特徵</div>
+                <div class="comp-cell comp-cell-this">
+                  <div class="comp-note">${c.thisNote}</div>
+                </div>
+                <div class="comp-cell comp-cell-target">
+                  <div class="comp-note">${c.targetNote}</div>
+                </div>
+              </div>
+              <div class="comp-row">
+                <div class="comp-row-label">💬 例句對比</div>
+                <div class="comp-cell comp-cell-this">
+                  <div class="comp-example">${c.thisExample}</div>
+                  <div class="comp-translation">${c.thisTranslation}</div>
+                </div>
+                <div class="comp-cell comp-cell-target">
+                  <div class="comp-example">${c.targetExample}</div>
+                  <div class="comp-translation">${c.targetTranslation}</div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        ` : ''}
+
+        ${getRelatedVocab(g.id)}
+
+        ${g.author || g.sourceUrl ? `
+          <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border-light);font-size:0.75rem;color:var(--text-light);display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            ${g.author ? `<span>✍️ ${g.author}</span>` : ''}
+            ${g.sourceUrl ? `<a href="${g.sourceUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">🔗 查看出處</a>` : ''}
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function getRelatedVocab(grammarId) {
+  const vocab = Storage.getVocab().filter(v => (v.grammarIds || []).includes(grammarId));
+  return `
+    <div class="detail-section-title" style="margin-top:16px;">相關單字</div>
+    ${vocab.length === 0
+      ? `<p style="font-size:0.82rem;color:var(--text-light);margin-top:6px;">尚無連結單字。可在新增／編輯單字時選擇關聯此文法。</p>`
+      : `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+          ${vocab.map(v => `
+            <a href="index.html" style="text-decoration:none;">
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.82rem;color:var(--text-primary);">
+                ${v.kanji} <span style="color:var(--text-secondary);">${v.hiragana}</span>
+              </span>
+            </a>
+          `).join('')}
+        </div>`
+    }
+  `;
+}
+
+function toggleGrammar(id) {
+  const card = document.getElementById(id);
+  card.classList.toggle('expanded');
+}
+
+// ===== Edit Modal =====
+function openAdd() {
+  document.getElementById('editModalTitle').textContent = '新增文法';
+  document.getElementById('editId').value = '';
+  document.getElementById('editPattern').value = '';
+  document.getElementById('editLevel').value = 'N5';
+  document.getElementById('editMeaning').value = '';
+  document.getElementById('editConjugation').value = '';
+  document.getElementById('editDetailedConjugation').value = '';
+  document.getElementById('editDetail').value = '';
+  document.getElementById('editAuthor').value = '';
+  document.getElementById('editSourceUrl').value = '';
+  document.getElementById('editDeleteBtn').style.display = 'none';
+  renderComparisonsInForm([]);
+  renderExamplesInForm([]);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function openEdit(id) {
+  const grammar = Storage.getGrammar();
+  const g = grammar.find(x => x.id === id);
+  if (!g) return;
+
+  document.getElementById('editModalTitle').textContent = '編輯文法';
+  document.getElementById('editId').value = g.id;
+  document.getElementById('editPattern').value = g.pattern;
+  document.getElementById('editLevel').value = g.level;
+  document.getElementById('editMeaning').value = g.meaning;
+  document.getElementById('editConjugation').value = g.conjugation || '';
+  document.getElementById('editDetailedConjugation').value = g.detailedConjugation || '';
+  document.getElementById('editDetail').value = g.detail || '';
+  document.getElementById('editAuthor').value = g.author || '';
+  document.getElementById('editSourceUrl').value = g.sourceUrl || '';
+  document.getElementById('editDeleteBtn').style.display = 'inline-flex';
+  renderComparisonsInForm(g.comparisons || []);
+  renderExamplesInForm(g.examples || []);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function renderComparisonsInForm(comparisons) {
+  const container = document.getElementById('comparisonsContainer');
+  container.innerHTML = '';
+  comparisons.forEach(c => addComparisonRow(c));
+}
+
+function addComparisonRow(c = {}) {
+  const container = document.getElementById('comparisonsContainer');
+  const div = document.createElement('div');
+  div.className = 'comparison-item';
+  div.innerHTML = `
+    <button type="button" class="remove-example" onclick="this.closest('.comparison-item').remove()">✕</button>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">相似文法句型</label>
+      <input type="text" class="form-input cmp-target" value="${escapeHtml(c.target||'')}" placeholder="例：〜と〜">
+    </div>
+    <div class="form-row" style="gap:8px;">
+      <div class="form-group">
+        <label class="form-label">✅ 本文法特點</label>
+        <input type="text" class="form-input cmp-this-note" value="${escapeHtml(c.thisNote||'')}" placeholder="例：部分列舉，還有其他">
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔶 相似文法特點</label>
+        <input type="text" class="form-input cmp-target-note" value="${escapeHtml(c.targetNote||'')}" placeholder="例：完全列舉，只有這些">
+      </div>
+    </div>
+    <div class="form-row" style="gap:8px;">
+      <div class="form-group">
+        <label class="form-label">✅ 本文法例句</label>
+        <input type="text" class="form-input cmp-this-ex" value="${escapeHtml(c.thisExample||'')}" placeholder="日文例句">
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔶 相似文法例句</label>
+        <input type="text" class="form-input cmp-target-ex" value="${escapeHtml(c.targetExample||'')}" placeholder="日文例句">
+      </div>
+    </div>
+    <div class="form-row" style="gap:8px;">
+      <div class="form-group">
+        <label class="form-label">✅ 翻譯</label>
+        <input type="text" class="form-input cmp-this-tl" value="${escapeHtml(c.thisTranslation||'')}" placeholder="中文翻譯">
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔶 翻譯</label>
+        <input type="text" class="form-input cmp-target-tl" value="${escapeHtml(c.targetTranslation||'')}" placeholder="中文翻譯">
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function renderExamplesInForm(examples) {
+  const container = document.getElementById('examplesContainer');
+  container.innerHTML = '';
+  examples.forEach(ex => addExampleRow(ex));
+}
+
+function addExampleRow(ex = {}) {
+  const container = document.getElementById('examplesContainer');
+  const div = document.createElement('div');
+  div.className = 'example-item';
+  div.innerHTML = `
+    <button type="button" class="remove-example" onclick="this.closest('.example-item').remove()">✕</button>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">例句（日文）</label>
+      <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：私は学生です。">
+    </div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">翻譯（中文）</label>
+      <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="例：我是學生。">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">說明（可選）</label>
+      <input type="text" class="form-input ex-explanation" value="${escapeHtml(ex.explanation||'')}" placeholder="例：「は」提示主題">
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function saveGrammar() {
+  const id = document.getElementById('editId').value;
+  const pattern = document.getElementById('editPattern').value.trim();
+  const level = document.getElementById('editLevel').value;
+  const meaning = document.getElementById('editMeaning').value.trim();
+  const conjugation = document.getElementById('editConjugation').value.trim();
+  const detailedConjugation = document.getElementById('editDetailedConjugation').value.trim();
+  const detail = document.getElementById('editDetail').value.trim();
+  const author = document.getElementById('editAuthor').value.trim();
+  const sourceUrl = document.getElementById('editSourceUrl').value.trim();
+
+  if (!pattern || !meaning) { showToast('請填寫文法句型與意思', 'error'); return; }
+
+  const cmpItems = document.querySelectorAll('#comparisonsContainer .comparison-item');
+  const comparisons = Array.from(cmpItems).map(item => ({
+    target: item.querySelector('.cmp-target').value.trim(),
+    thisNote: item.querySelector('.cmp-this-note').value.trim(),
+    targetNote: item.querySelector('.cmp-target-note').value.trim(),
+    thisExample: item.querySelector('.cmp-this-ex').value.trim(),
+    targetExample: item.querySelector('.cmp-target-ex').value.trim(),
+    thisTranslation: item.querySelector('.cmp-this-tl').value.trim(),
+    targetTranslation: item.querySelector('.cmp-target-tl').value.trim()
+  })).filter(c => c.target);
+
+  const exItems = document.querySelectorAll('#examplesContainer .example-item');
+  const examples = Array.from(exItems).map(item => ({
+    sentence: item.querySelector('.ex-sentence').value.trim(),
+    translation: item.querySelector('.ex-translation').value.trim(),
+    explanation: item.querySelector('.ex-explanation').value.trim()
+  })).filter(e => e.sentence);
+
+  const grammar = Storage.getGrammar();
+  if (id) {
+    const idx = grammar.findIndex(g => g.id === id);
+    if (idx !== -1) grammar[idx] = { ...grammar[idx], pattern, level, meaning, conjugation, detailedConjugation, detail, author, sourceUrl, comparisons, examples };
+    showToast('文法已更新', 'success');
+  } else {
+    grammar.push({ id: Storage.genId('g'), pattern, level, meaning, conjugation, detailedConjugation, detail, author, sourceUrl, comparisons, examples });
+    showToast('新增成功', 'success');
+  }
+
+  Storage.saveGrammar(grammar);
+  closeEditModal();
+  renderGrammar();
+  updateSidebarCounts();
+}
+
+function deleteGrammar() {
+  const id = document.getElementById('editId').value;
+  if (!id || !confirm('確定要刪除這條文法嗎？')) return;
+  const grammar = Storage.getGrammar().filter(g => g.id !== id);
+  Storage.saveGrammar(grammar);
+  closeEditModal();
+  renderGrammar();
+  updateSidebarCounts();
+  showToast('已刪除', 'error');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+function setupEventListeners() {
+  document.getElementById('btnAddGrammar').addEventListener('click', openAdd);
+  document.getElementById('editSaveBtn').addEventListener('click', saveGrammar);
+  document.getElementById('editDeleteBtn').addEventListener('click', deleteGrammar);
+  document.getElementById('editCancelBtn').addEventListener('click', closeEditModal);
+  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+  document.getElementById('addComparisonBtn').addEventListener('click', () => addComparisonRow());
+  document.getElementById('addExampleBtn').addEventListener('click', () => addExampleRow());
+  document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+
+  document.querySelectorAll('.level-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.level-btn').forEach(b => b.className = 'level-btn');
+      const lvl = btn.dataset.level;
+      currentLevel = lvl;
+      if (lvl === '全部') btn.classList.add('active-all');
+      else btn.classList.add('active-' + lvl.toLowerCase());
+      renderGrammar();
+    });
+  });
+
+  let searchTimer;
+  document.getElementById('searchInput').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentSearch = e.target.value.trim(); renderGrammar(); }, 250);
+  });
+
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  hamburger.addEventListener('click', () => { sidebar.classList.toggle('open'); overlay.classList.toggle('show'); });
+  overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('show'); });
+}
+
+function copyId(id) {
+  navigator.clipboard.writeText(id).then(() => showToast(`已複製 ID: ${id}`));
+}
+
+function speakWord(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ja-JP'; utter.rate = 0.9;
+  const v = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ja'));
+  if (v) utter.voice = v;
+  window.speechSynthesis.speak(utter);
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

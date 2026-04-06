@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日語學習本 — 登入</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: #F7F7F5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .logo { font-size: 2.5rem; margin-bottom: 8px; }
+    h1 { font-size: 1.4rem; font-weight: 800; color: #37352F; margin-bottom: 6px; }
+    .subtitle { font-size: 0.88rem; color: #787774; margin-bottom: 32px; }
+    label { display: block; text-align: left; font-size: 0.82rem; font-weight: 700; color: #37352F; margin-bottom: 6px; }
+    input[type="email"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #E9E9E7;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 16px;
+    }
+    input[type="email"]:focus { border-color: #2F80ED; }
+    .btn {
+      width: 100%;
+      padding: 11px;
+      background: #2F80ED;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #1A6BC4; }
+    .btn:disabled { background: #AEACA8; cursor: not-allowed; }
+    .msg {
+      margin-top: 20px;
+      font-size: 0.85rem;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+    }
+    .msg.success { background: #DCFCE7; color: #15803D; display: block; }
+    .msg.error   { background: #FEE2E2; color: #DC2626; display: block; }
+    .divider { border: none; border-top: 1px solid #E9E9E7; margin: 24px 0; }
+    .alt-btn {
+      width: 100%;
+      padding: 10px;
+      background: none;
+      border: 1.5px solid #E9E9E7;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      color: #37352F;
+      transition: background 0.15s;
+    }
+    .alt-btn:hover { background: #F7F7F5; }
+    .note { font-size: 0.78rem; color: #AEACA8; margin-top: 16px; }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">🌸</div>
+  <h1>日語學習本</h1>
+  <p class="subtitle">輸入 Email，我們會寄送登入連結給你</p>
+
+  <label for="emailInput">電子郵件</label>
+  <input type="email" id="emailInput" placeholder="your@email.com" autofocus>
+  <button class="btn" id="sendBtn" onclick="sendMagicLink()">📨 寄送登入連結</button>
+
+  <div class="msg" id="msg"></div>
+
+  <hr class="divider">
+
+  <p style="font-size:0.82rem;color:#787774;margin-bottom:12px;">或使用帳號密碼登入</p>
+  <label for="pwdEmail">電子郵件</label>
+  <input type="email" id="pwdEmail" placeholder="your@email.com" style="margin-bottom:8px;">
+  <label for="pwdInput">密碼</label>
+  <input type="password" id="pwdInput" placeholder="••••••••" style="margin-bottom:16px;width:100%;padding:10px 14px;border:1.5px solid #E9E9E7;border-radius:8px;font-size:0.95rem;font-family:inherit;outline:none;">
+  <button class="alt-btn" onclick="loginWithPassword()">🔐 登入</button>
+  <button class="alt-btn" style="margin-top:8px;" onclick="signupWithPassword()">✨ 註冊新帳號</button>
+
+  <p class="note">第一次使用？建議用 Magic Link 免密碼登入最方便。</p>
+</div>
+
+<script>
+  // 若已登入，直接跳轉
+  db.auth.getUser().then(({ data: { user } }) => {
+    if (user) window.location.href = 'index.html';
+  });
+
+  // 監聽 auth 狀態（Magic Link 回調）
+  db.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN') window.location.href = 'index.html';
+  });
+
+  async function sendMagicLink() {
+    const email = document.getElementById('emailInput').value.trim();
+    const btn = document.getElementById('sendBtn');
+    const msg = document.getElementById('msg');
+    if (!email) { showMsg('請輸入 Email', 'error'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '傳送中...';
+    const { error } = await db.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + '/index.html' }
+    });
+    btn.disabled = false;
+    btn.textContent = '📨 寄送登入連結';
+
+    if (error) showMsg('發送失敗：' + error.message, 'error');
+    else showMsg('✅ 連結已寄出！請檢查你的信箱，點擊連結即可登入。', 'success');
+  }
+
+  async function loginWithPassword() {
+    const email = document.getElementById('pwdEmail').value.trim();
+    const password = document.getElementById('pwdInput').value;
+    if (!email || !password) { showMsg('請填寫 Email 和密碼', 'error'); return; }
+    const { error } = await db.auth.signInWithPassword({ email, password });
+    if (error) showMsg('登入失敗：' + error.message, 'error');
+    else window.location.href = 'index.html';
+  }
+
+  async function signupWithPassword() {
+    const email = document.getElementById('pwdEmail').value.trim();
+    const password = document.getElementById('pwdInput').value;
+    if (!email || !password) { showMsg('請填寫 Email 和密碼', 'error'); return; }
+    if (password.length < 6) { showMsg('密碼至少需要 6 個字元', 'error'); return; }
+    const { error } = await db.auth.signUp({ email, password });
+    if (error) showMsg('註冊失敗：' + error.message, 'error');
+    else showMsg('✅ 註冊成功！請檢查信箱完成驗證。', 'success');
+  }
+
+  function showMsg(text, type) {
+    const el = document.getElementById('msg');
+    el.textContent = text;
+    el.className = 'msg ' + type;
+  }
+
+  document.getElementById('emailInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendMagicLink();
+  });
+</script>
+</body>
+</html>
