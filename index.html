@@ -847,7 +847,6 @@ function addExampleRow(ex = {}, idx) {
   const container = document.getElementById('examplesContainer');
   const div = document.createElement('div');
   div.className = 'example-item';
-  const isDialogue = ex.type === 'dialogue';
   const type = ex.type || 'normal';
   const isQa = type === 'qa';
   const isDialogue = type === 'dialogue';
