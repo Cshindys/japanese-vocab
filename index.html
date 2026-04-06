@@ -584,12 +584,31 @@ function openDetail(id) {
   const grammarIds = v.grammarIds || [];
 
   const examplesHtml = (v.examples || []).map(ex => {
-    const gBadges = grammarTagsForSentence(ex.sentence, grammarIds, grammar);
-    const linkedSentence = linkVocabInSentence(ex.sentence, v.id, vocab);
     const explHtml = ex.explanation
       ? ex.explanation.split('\n').filter(l => l.trim())
           .map(l => `<div class="example-explanation">💡 ${l.trim()}</div>`).join('')
       : '';
+
+    if (ex.type === 'dialogue') {
+      const speakers = [...new Set((ex.dialogue||[]).map(l => l.speaker).filter(Boolean))];
+      const bubblesHtml = (ex.dialogue||[]).map(line => {
+        const side = line.speaker ? (speakers.indexOf(line.speaker) % 2 === 0 ? 'left' : 'right') : 'left';
+        return `<div class="dialogue-line dialogue-${side}">
+          ${line.speaker ? `<div class="dialogue-speaker">${escapeHtml(line.speaker)}</div>` : ''}
+          <div class="dialogue-bubble">${escapeHtml(line.text)}</div>
+        </div>`;
+      }).join('');
+      return `
+        <div class="example-card">
+          <div class="dialogue-badge">💬 會話文</div>
+          <div class="dialogue-container">${bubblesHtml}</div>
+          ${ex.translation ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : ''}
+          ${explHtml}
+        </div>`;
+    }
+
+    const gBadges = grammarTagsForSentence(ex.sentence, grammarIds, grammar);
+    const linkedSentence = linkVocabInSentence(ex.sentence, v.id, vocab);
     return `
       <div class="example-card">
         <div class="example-card-top">
@@ -599,7 +618,7 @@ function openDetail(id) {
           </div>
           <button class="ex-play-btn" onclick="speakWord('${escapeAttr(ex.sentence)}')" title="朗讀">🔊</button>
         </div>
-        <div class="example-translation">${ex.translation}</div>
+        <div class="example-translation">${escapeHtml(ex.translation||'')}</div>
         ${explHtml}
         ${gBadges ? `<div class="ex-grammar-row">${gBadges}</div>` : ''}
       </div>`;
@@ -736,26 +755,55 @@ function addExampleRow(ex = {}, idx) {
   const container = document.getElementById('examplesContainer');
   const div = document.createElement('div');
   div.className = 'example-item';
+  const isDialogue = ex.type === 'dialogue';
   div.innerHTML = `
     <button type="button" class="remove-example" onclick="this.closest('.example-item').remove()">✕</button>
-    <div class="form-group" style="margin-bottom:8px;">
-      <label class="form-label">例句（日文）</label>
-      <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：学校に行きます。">
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <button type="button" class="ex-type-btn ${!isDialogue?'active':''}" onclick="setVocabExType(this,'normal')">一般例句</button>
+      <button type="button" class="ex-type-btn ${isDialogue?'active':''}" onclick="setVocabExType(this,'dialogue')">💬 會話文</button>
     </div>
-    <div class="form-group" style="margin-bottom:8px;">
-      <label class="form-label">例句假名（可選，顯示在例句上方）</label>
-      <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：がっこうにいきます。">
+    <input type="hidden" class="ex-type" value="${isDialogue?'dialogue':'normal'}">
+
+    <!-- normal fields -->
+    <div class="ex-normal-fields" ${isDialogue?'style="display:none;"':''}>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">例句（日文）</label>
+        <input type="text" class="form-input ex-sentence" value="${escapeHtml(ex.sentence||'')}" placeholder="例：学校に行きます。">
+      </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">例句假名（可選）</label>
+        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：がっこうにいきます。">
+      </div>
     </div>
+
+    <!-- dialogue fields -->
+    <div class="ex-dialogue-fields" ${!isDialogue?'style="display:none;"':''}>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label class="form-label">會話內容（每行：說話者：台詞）</label>
+        <textarea class="form-input ex-dialogue-text" style="min-height:90px;font-family:inherit;resize:vertical;" placeholder="例：&#10;受付：いらっしゃいませ。&#10;客：クリーニングをお願いします。">${escapeHtml((ex.dialogue||[]).map(l=>l.speaker?l.speaker+'：'+l.text:l.text).join('\n'))}</textarea>
+      </div>
+    </div>
+
     <div class="form-group" style="margin-bottom:8px;">
       <label class="form-label">翻譯（中文）</label>
       <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="例：去學校。">
     </div>
     <div class="form-group" style="margin-bottom:0;">
-      <label class="form-label">說明（可選，多條說明請按下 Enter 換行）</label>
-      <textarea class="form-input ex-explanation" style="min-height: 60px; font-family: inherit; resize: vertical;" placeholder="每行一條說明，例：\n「に」表示移動的目的地\n「ます」表示客氣用法">${escapeHtml(ex.explanation||'')}</textarea>
+      <label class="form-label">說明（可選）</label>
+      <textarea class="form-input ex-explanation" style="min-height:60px;font-family:inherit;resize:vertical;" placeholder="每行一條說明">${escapeHtml(ex.explanation||'')}</textarea>
     </div>
   `;
   container.appendChild(div);
+}
+
+function setVocabExType(btn, type) {
+  const item = btn.closest('.example-item');
+  item.querySelectorAll('.ex-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  item.querySelector('.ex-type').value = type;
+  const isDialogue = type === 'dialogue';
+  item.querySelector('.ex-normal-fields').style.display = isDialogue ? 'none' : '';
+  item.querySelector('.ex-dialogue-fields').style.display = isDialogue ? '' : 'none';
 }
 
 function saveVocab() {
@@ -776,12 +824,23 @@ function saveVocab() {
   const grammarIds = Array.from(grammarSel.selectedOptions).map(o => o.value);
 
   const exItems = document.querySelectorAll('#examplesContainer .example-item');
-  const examples = Array.from(exItems).map(item => ({
-    sentence: item.querySelector('.ex-sentence').value.trim(),
-    hiragana: item.querySelector('.ex-hiragana').value.trim(),
-    translation: item.querySelector('.ex-translation').value.trim(),
-    explanation: item.querySelector('.ex-explanation').value.trim()
-  })).filter(e => e.sentence);
+  const examples = Array.from(exItems).map(item => {
+    const type = item.querySelector('.ex-type').value;
+    const translation = item.querySelector('.ex-translation').value.trim();
+    const explanation = item.querySelector('.ex-explanation').value.trim();
+    if (type === 'dialogue') {
+      const raw = item.querySelector('.ex-dialogue-text').value.trim();
+      const dialogue = raw.split('\n').filter(l => l.trim()).map(line => {
+        const idx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
+        if (idx > 0) return { speaker: line.slice(0, idx).trim(), text: line.slice(idx + 1).trim() };
+        return { speaker: '', text: line.trim() };
+      });
+      return dialogue.length ? { type: 'dialogue', dialogue, translation, explanation } : null;
+    }
+    const sentence = item.querySelector('.ex-sentence').value.trim();
+    const hiragana = item.querySelector('.ex-hiragana').value.trim();
+    return sentence ? { type: 'normal', sentence, hiragana, translation, explanation } : null;
+  }).filter(Boolean);
 
   const vocab = Storage.getVocab();
   if (id) {

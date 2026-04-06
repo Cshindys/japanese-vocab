@@ -1262,6 +1262,11 @@ body {
 .detail-toolbar button:hover { border-color: var(--accent); color: var(--accent); background: #EBF4FF; }
 
 /* ===== Dialogue ===== */
+.dialogue-badge {
+  display: inline-block; font-size: 0.72rem; font-weight: 700;
+  color: var(--primary); background: rgba(99,102,241,0.1);
+  border-radius: 20px; padding: 2px 10px; margin-bottom: 8px;
+}
 .dialogue-container { display: flex; flex-direction: column; gap: 14px; padding: 8px 0; }
 .dialogue-line { display: flex; flex-direction: column; max-width: 78%; gap: 4px; }
 .dialogue-left  { align-self: flex-start; align-items: flex-start; }
