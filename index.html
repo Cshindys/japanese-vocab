@@ -650,10 +650,12 @@ function openDetail(id) {
       : '';
 
     if (ex.type === 'qa') {
-      const qHiraHtml = ex.hiragana        ? `<div class="ex-hiragana" style="">${escapeHtml(ex.hiragana)}</div>` : '';
-      const qTlHtml   = ex.translation     ? `<div class="example-translation" style="">${escapeHtml(ex.translation)}</div>` : '';
-      const aHiraHtml = ex.answerHiragana  ? `<div class="ex-hiragana" style="">${escapeHtml(ex.answerHiragana)}</div>` : '';
-      const aTlHtml   = ex.answerTranslation ? `<div class="example-translation" style="">${escapeHtml(ex.answerTranslation)}</div>` : '';
+      const isNewFormat = ex.answerTranslation !== undefined || ex.answerHiragana !== undefined;
+      const qHiraHtml    = ex.hiragana         ? `<div class="ex-hiragana">${escapeHtml(ex.hiragana)}</div>` : '';
+      const qTlHtml      = isNewFormat && ex.translation      ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : '';
+      const aHiraHtml    = ex.answerHiragana   ? `<div class="ex-hiragana">${escapeHtml(ex.answerHiragana)}</div>` : '';
+      const aTlHtml      = isNewFormat && ex.answerTranslation ? `<div class="example-translation">${escapeHtml(ex.answerTranslation)}</div>` : '';
+      const sharedTlHtml = !isNewFormat && ex.translation     ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : '';
       return `
         <div class="example-card">
           <div class="ex-qa-block">
@@ -676,6 +678,7 @@ function openDetail(id) {
               <button class="ex-play-btn" onclick="speakWord('${escapeAttr(ex.answer||'')}')" title="朗讀">🔊</button>
             </div>
           </div>
+          ${sharedTlHtml}
           ${explHtml}
         </div>`;
     }
