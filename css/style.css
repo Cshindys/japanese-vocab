@@ -1285,6 +1285,27 @@ body {
 }
 .dialogue-left  .dialogue-bubble { background: var(--sidebar-bg); border: 1px solid var(--border); border-top-left-radius: 4px; }
 .dialogue-right .dialogue-bubble { background: #EBF4FF; border: 1px solid #BFDBFE; border-top-right-radius: 4px; color: #1e3a5f; }
+.dialogue-line-hiragana {
+  font-size: 0.75rem; color: var(--text-secondary); padding: 0 4px;
+  font-family: var(--font-jp); letter-spacing: 0.03em;
+}
+.dialogue-line-tl {
+  font-size: 0.78rem; color: var(--text-secondary); padding: 0 4px;
+  font-style: italic;
+}
+/* Dialogue form rows */
+.dl-row-form {
+  display: flex; align-items: flex-start; gap: 6px;
+  background: var(--sidebar-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px; margin-bottom: 6px;
+}
+.dl-row-remove {
+  background: none; border: none; cursor: pointer; color: var(--text-light);
+  font-size: 0.85rem; padding: 2px 4px; flex-shrink: 0; margin-top: 2px;
+}
+.dl-row-remove:hover { color: var(--danger); }
+.dl-row-fields { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.dl-row-right { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
 /* ===== Utility ===== */
 .hidden { display: none !important; }

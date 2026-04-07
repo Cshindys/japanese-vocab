@@ -689,7 +689,9 @@ function openDetail(id) {
         const side = line.speaker ? (speakers.indexOf(line.speaker) % 2 === 0 ? 'left' : 'right') : 'left';
         return `<div class="dialogue-line dialogue-${side}">
           ${line.speaker ? `<div class="dialogue-speaker">${escapeHtml(line.speaker)}</div>` : ''}
+          ${line.hiragana ? `<div class="dialogue-line-hiragana">${escapeHtml(line.hiragana)}</div>` : ''}
           <div class="dialogue-bubble">${escapeHtml(line.text)}</div>
+          ${line.translation ? `<div class="dialogue-line-tl">${escapeHtml(line.translation)}</div>` : ''}
         </div>`;
       }).join('');
       return `
@@ -928,15 +930,16 @@ function addExampleRow(ex = {}, idx) {
     <!-- ── 會話文 ── -->
     <div class="ex-dialogue-fields" ${!isDialogue?'style="display:none;"':''}>
       <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label">假名/場景（可選）</label>
-        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="場景說明或讀法">
+        <label class="form-label">場景說明（可選）</label>
+        <input type="text" class="form-input ex-hiragana" value="${escapeHtml(ex.hiragana||'')}" placeholder="例：在便利商店 / コンビニで">
+      </div>
+      <div class="form-group" style="margin-bottom:6px;">
+        <label class="form-label">對話內容</label>
+        <div class="ex-dialogue-rows">${(ex.dialogue||[{speaker:'',text:'',hiragana:'',translation:''}]).map(l=>buildDialogueLineForm(l)).join('')}</div>
+        <button type="button" class="add-example-btn" style="margin-top:6px;font-size:0.8rem;padding:5px 12px;" onclick="addDialogueRow(this)">＋ 新增對話行</button>
       </div>
       <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label">會話內容（每行：說話者：台詞）</label>
-        <textarea class="form-input ex-dialogue-text" style="min-height:90px;font-family:inherit;resize:vertical;" placeholder="例：&#10;受付：いらっしゃいませ。&#10;客：クリーニングをお願いします。">${escapeHtml((ex.dialogue||[]).map(l=>l.speaker?l.speaker+'：'+l.text:l.text).join('\n'))}</textarea>
-      </div>
-      <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label">翻譯（中文）</label>
+        <label class="form-label">整段中文翻譯（可選）</label>
         <input type="text" class="form-input ex-translation" value="${escapeHtml(ex.translation||'')}" placeholder="整段翻譯（可選）">
       </div>
     </div>
@@ -948,6 +951,36 @@ function addExampleRow(ex = {}, idx) {
     </div>
   `;
   container.appendChild(div);
+}
+
+function buildDialogueLineForm(l = {}) {
+  return `<div class="dl-row-form">
+    <button type="button" class="dl-row-remove" onclick="this.closest('.dl-row-form').remove()" title="刪除此行">✕</button>
+    <div class="dl-row-fields">
+      <input type="text" class="form-input dl-speaker" value="${escapeHtml(l.speaker||'')}" placeholder="說話者（如：A、店員）" style="width:90px;flex-shrink:0;">
+      <div class="dl-row-right">
+        <input type="text" class="form-input dl-text"        value="${escapeHtml(l.text||'')}"        placeholder="日文台詞" style="margin-bottom:4px;">
+        <input type="text" class="form-input dl-hiragana"    value="${escapeHtml(l.hiragana||'')}"    placeholder="假名（可選）" style="margin-bottom:4px;font-size:0.82rem;">
+        <input type="text" class="form-input dl-translation" value="${escapeHtml(l.translation||'')}" placeholder="中文翻譯（可選）" style="font-size:0.82rem;">
+      </div>
+    </div>
+  </div>`;
+}
+
+function addDialogueRow(btn) {
+  const container = btn.previousElementSibling;
+  const div = document.createElement('div');
+  div.innerHTML = buildDialogueLineForm({});
+  container.appendChild(div.firstElementChild);
+}
+
+function collectDialogueRows(item) {
+  return Array.from(item.querySelectorAll('.dl-row-form')).map(row => ({
+    speaker:     row.querySelector('.dl-speaker')?.value.trim()     || '',
+    text:        row.querySelector('.dl-text')?.value.trim()        || '',
+    hiragana:    row.querySelector('.dl-hiragana')?.value.trim()    || '',
+    translation: row.querySelector('.dl-translation')?.value.trim() || ''
+  })).filter(l => l.text);
 }
 
 function setVocabExType(btn, type) {
@@ -990,14 +1023,9 @@ function saveVocab() {
       return sentence ? { type, sentence, hiragana, translation, answer, answerHiragana, answerTranslation, explanation } : null;
     }
     if (type === 'dialogue') {
-      const hiragana    = item.querySelector('.ex-hiragana').value.trim();
-      const translation = item.querySelector('.ex-translation').value.trim();
-      const raw = item.querySelector('.ex-dialogue-text').value.trim();
-      const dialogue = raw.split('\n').filter(l => l.trim()).map(line => {
-        const idx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
-        if (idx > 0) return { speaker: line.slice(0, idx).trim(), text: line.slice(idx + 1).trim() };
-        return { speaker: '', text: line.trim() };
-      });
+      const hiragana    = item.querySelector('.ex-hiragana')?.value.trim()    || '';
+      const translation = item.querySelector('.ex-translation')?.value.trim() || '';
+      const dialogue = collectDialogueRows(item);
       return dialogue.length ? { type, hiragana, dialogue, translation, explanation } : null;
     }
     // normal
