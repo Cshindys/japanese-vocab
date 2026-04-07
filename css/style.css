@@ -1197,6 +1197,44 @@ rt {
   letter-spacing: 0;
 }
 
+/* Grammar page — group filter buttons */
+.group-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.group-filter-btn {
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-jp);
+}
+.group-filter-btn:hover { background: var(--hover-bg); }
+.group-filter-btn.active {
+  border-color: var(--grammar-color);
+  background: var(--grammar-bg);
+  color: var(--grammar-color);
+}
+
+/* Grammar page — section headers between groups */
+.grammar-section-header {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--grammar-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 16px 4px 6px;
+  border-bottom: 2px solid var(--grammar-bg);
+  margin-bottom: 8px;
+}
+.grammar-section-header:first-child { padding-top: 4px; }
+
 /* Per-sentence grammar group selector */
 .ex-grammar-group { margin-bottom: 4px; }
 .ex-grammar-group-header {

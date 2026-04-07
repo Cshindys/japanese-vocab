@@ -65,6 +65,7 @@
         <button class="level-btn" data-level="N2">N2</button>
         <button class="level-btn" data-level="N1">N1</button>
       </div>
+      <div class="group-filters" id="groupFilters"></div>
     </div>
 
     <div class="results-count" id="resultsCount"></div>
@@ -162,10 +163,12 @@
 <script>
 let currentLevel = '全部';
 let currentSearch = '';
+let currentGroup = '全部';
 
 async function init() {
   await Storage.loadFromCloud();
   updateSidebarCounts();
+  renderGroupFilters();
   renderGrammar();
   setupEventListeners();
 
@@ -194,10 +197,33 @@ function updateSidebarCounts() {
   document.getElementById('statReading').textContent = readings.length;
 }
 
+function renderGroupFilters() {
+  const grammar = Storage.getGrammar();
+  const groups = [...new Set(grammar.map(g => g.group || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'zh-TW'));
+  const container = document.getElementById('groupFilters');
+  if (!groups.length) { container.style.display = 'none'; return; }
+  container.style.display = '';
+  container.innerHTML = `
+    <button class="group-filter-btn active" data-group="全部">全部分組</button>
+    ${groups.map(g => `<button class="group-filter-btn" data-group="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join('')}
+    <button class="group-filter-btn" data-group="__ungrouped__">未分組</button>
+  `;
+  container.querySelectorAll('.group-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.group-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentGroup = btn.dataset.group;
+      renderGrammar();
+    });
+  });
+}
+
 function renderGrammar() {
   let data = Storage.getGrammar();
 
   if (currentLevel !== '全部') data = data.filter(g => g.level === currentLevel);
+  if (currentGroup === '__ungrouped__') data = data.filter(g => !g.group);
+  else if (currentGroup !== '全部') data = data.filter(g => g.group === currentGroup);
   if (currentSearch) {
     const q = currentSearch.toLowerCase();
     data = data.filter(g =>
@@ -220,7 +246,24 @@ function renderGrammar() {
     return;
   }
 
-  list.innerHTML = data.map(g => `
+  // Insert group section headers when viewing all groups without a search filter
+  const showHeaders = currentGroup === '全部' && !currentSearch;
+  let lastGroupSeen = null;
+  const sectionParts = [];
+  data.forEach(g => {
+    if (showHeaders) {
+      const gKey = g.group || '未分組';
+      if (gKey !== lastGroupSeen) {
+        lastGroupSeen = gKey;
+        sectionParts.push(`<div class="grammar-section-header">${escapeHtml(gKey)}</div>`);
+      }
+    }
+    sectionParts.push(cardHtml(g));
+  });
+  list.innerHTML = sectionParts.join('');
+}
+
+function cardHtml(g) { return `
     <div class="grammar-card" id="gc-${g.id}">
       <div class="grammar-card-header" onclick="toggleGrammar('gc-${g.id}')">
         <span class="badge ${getLevelClass(g.level)}">${g.level}</span>
@@ -355,7 +398,7 @@ function renderGrammar() {
         ` : ''}
       </div>
     </div>
-  `).join('');
+  `;
 }
 
 function getRelatedGrammar(g) {
@@ -738,6 +781,7 @@ function saveGrammar() {
   Storage.saveGrammar(grammar);
   const savedId = id || grammar[grammar.length - 1]?.id;
   closeEditModal();
+  renderGroupFilters();
   renderGrammar();
   updateSidebarCounts();
   // Auto-expand the saved card so the user can see changes immediately
