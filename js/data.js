@@ -564,6 +564,44 @@ const Storage = {
 
 window.AppStorage = Storage;
 
+// ===== Furigana (ruby) helper =====
+// Wraps kanji characters with <ruby>kanji<rt>reading</rt></ruby>.
+// Non-kanji chars (kana, punctuation, etc.) are output as-is.
+// If no hiragana is provided the sentence is returned HTML-escaped.
+function addFurigana(sentence, hiragana) {
+  if (!sentence) return '';
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if (!hiragana || hiragana === sentence) return esc(sentence);
+
+  // Matches CJK Unified Ideographs (common kanji range)
+  const isKanji = c => /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/.test(c);
+
+  let si = 0, hi = 0, result = '';
+  while (si < sentence.length) {
+    if (!isKanji(sentence[si])) {
+      // Non-kanji: output and advance both pointers together
+      result += esc(sentence[si]);
+      si++; hi++;
+    } else {
+      // Collect consecutive kanji from sentence
+      let kanjiRun = '';
+      while (si < sentence.length && isKanji(sentence[si])) kanjiRun += sentence[si++];
+
+      // Collect corresponding hiragana until the next sentence char is found
+      const nextSentChar = si < sentence.length ? sentence[si] : null;
+      let readingRun = '';
+      while (hi < hiragana.length) {
+        if (nextSentChar !== null && hiragana[hi] === nextSentChar) break;
+        readingRun += hiragana[hi++];
+      }
+      result += readingRun
+        ? `<ruby>${esc(kanjiRun)}<rt>${esc(readingRun)}</rt></ruby>`
+        : esc(kanjiRun);
+    }
+  }
+  return result;
+}
+
 // ===== Utility =====
 const LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];
 const POS_LIST = ['名詞', '動詞（う動詞）', '動詞（る動詞）', '動詞（サ変）', '動詞（カ変）', 'い形容詞', 'な形容詞', '副詞', '接続詞', '助詞', '接頭語', '接尾語', '感動詞', '人稱代名詞','指示代名詞','代名詞', '数詞'];

@@ -246,37 +246,33 @@ function renderGrammar() {
               const side = line.speaker ? (speakers.indexOf(line.speaker)%2===0?'left':'right') : 'left';
               return `<div class="dialogue-line dialogue-${side}">
                 ${line.speaker?`<div class="dialogue-speaker">${escapeHtml(line.speaker)}</div>`:''}
-                ${line.hiragana?`<div class="dialogue-line-hiragana">${escapeHtml(line.hiragana)}</div>`:''}
-                <div class="dialogue-bubble">${escapeHtml(line.text)}</div>
+                <div class="dialogue-bubble">${addFurigana(line.text, line.hiragana)}</div>
                 ${line.translation?`<div class="dialogue-line-tl">${escapeHtml(line.translation)}</div>`:''}
               </div>`;
             }).join('');
             return `
             <div class="example-card">
               <div class="dialogue-badge">💬 會話文</div>
-              ${hiraganaHtml}
+              ${ex.hiragana ? `<div class="ex-hiragana" style="font-size:0.8rem;color:var(--text-secondary);">${escapeHtml(ex.hiragana)}</div>` : ''}
               <div class="dialogue-container">${bubblesHtml}</div>
               ${ex.translation ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : ''}
               ${explHtml}
             </div>`;
           }
           if (ex.type === 'qa') {
-            // new format: per-sentence hiragana + translation
-            // old format: single shared translation shown once below block
             const isNewFormat = ex.answerTranslation !== undefined || ex.answerHiragana !== undefined;
-            const qHiraHtml = ex.hiragana       ? `<div class="ex-hiragana">${escapeHtml(ex.hiragana)}</div>` : '';
-            const qTlHtml   = isNewFormat && ex.translation     ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : '';
-            const aHiraHtml = ex.answerHiragana  ? `<div class="ex-hiragana">${escapeHtml(ex.answerHiragana)}</div>` : '';
+            const qSentHtml = addFurigana(ex.sentence, ex.hiragana);
+            const aSentHtml = addFurigana(ex.answer||'', ex.answerHiragana||'');
+            const qTlHtml   = isNewFormat && ex.translation      ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : '';
             const aTlHtml   = isNewFormat && ex.answerTranslation ? `<div class="example-translation">${escapeHtml(ex.answerTranslation)}</div>` : '';
-            const sharedTlHtml = !isNewFormat && ex.translation  ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : '';
+            const sharedTlHtml = !isNewFormat && ex.translation   ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : '';
             return `
             <div class="example-card">
               <div class="ex-qa-block">
                 <div class="ex-qa-row">
                   <span class="ex-qa-label ex-qa-q">問</span>
                   <div style="flex:1;min-width:0;">
-                    ${qHiraHtml}
-                    <div class="ex-qa-text">${linkVocabInSentence(ex.sentence)}</div>
+                    <div class="ex-qa-text">${qSentHtml}</div>
                     ${qTlHtml}
                   </div>
                   <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
@@ -284,8 +280,7 @@ function renderGrammar() {
                 <div class="ex-qa-row" style="margin-top:8px;">
                   <span class="ex-qa-label ex-qa-a">答</span>
                   <div style="flex:1;min-width:0;">
-                    ${aHiraHtml}
-                    <div class="ex-qa-text">${linkVocabInSentence(ex.answer||'')}</div>
+                    <div class="ex-qa-text">${aSentHtml}</div>
                     ${aTlHtml}
                   </div>
                   <button class="ex-play-btn" onclick="speakWord('${(ex.answer||'').replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
@@ -297,9 +292,8 @@ function renderGrammar() {
           }
           return `
           <div class="example-card">
-            ${ex.hiragana ? `<div class="ex-hiragana">${escapeHtml(ex.hiragana)}</div>` : ''}
             <div class="example-card-top">
-              <div class="example-sentence">${linkVocabInSentence(ex.sentence)}</div>
+              <div class="example-sentence">${ex.hiragana ? addFurigana(ex.sentence, ex.hiragana) : linkVocabInSentence(ex.sentence)}</div>
               <button class="ex-play-btn" onclick="speakWord('${ex.sentence.replace(/'/g,"\\'")}')" title="朗讀">🔊</button>
             </div>
             ${ex.translation ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : ''}

@@ -1188,6 +1188,15 @@ body {
   top: 10px; left: 10px;
 }
 
+/* ===== Furigana (ruby) ===== */
+ruby { ruby-align: center; }
+rt {
+  font-size: 0.6em;
+  color: var(--text-secondary);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
 /* Comparison multi-example rows */
 .cmp-ex-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
 .cmp-ex-row { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; }
