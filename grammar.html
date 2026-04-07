@@ -334,12 +334,10 @@ function renderGrammar() {
               <div class="comp-row">
                 <div class="comp-row-label">💬 例句對比</div>
                 <div class="comp-cell comp-cell-this">
-                  <div class="comp-example">${c.thisExample}</div>
-                  <div class="comp-translation">${c.thisTranslation}</div>
+                  ${(c.thisExamples && c.thisExamples.length ? c.thisExamples : (c.thisExample ? [{text:c.thisExample,translation:c.thisTranslation||''}] : [])).map(e=>`<div class="comp-example">${e.text}</div><div class="comp-translation">${e.translation}</div>`).join('<hr class="cmp-ex-sep">')}
                 </div>
                 <div class="comp-cell comp-cell-target">
-                  <div class="comp-example">${c.targetExample}</div>
-                  <div class="comp-translation">${c.targetTranslation}</div>
+                  ${(c.targetExamples && c.targetExamples.length ? c.targetExamples : (c.targetExample ? [{text:c.targetExample,translation:c.targetTranslation||''}] : [])).map(e=>`<div class="comp-example">${e.text}</div><div class="comp-translation">${e.translation}</div>`).join('<hr class="cmp-ex-sep">')}
                 </div>
               </div>
             </div>
@@ -473,10 +471,32 @@ function renderComparisonsInForm(comparisons) {
   comparisons.forEach(c => addComparisonRow(c));
 }
 
+function _buildCmpExRowHtml(text, tl) {
+  return `<div class="cmp-ex-row">
+    <input type="text" class="form-input cmp-ex-text" value="${escapeHtml(text)}" placeholder="日文例句" style="margin-bottom:4px;">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="text" class="form-input cmp-ex-tl" value="${escapeHtml(tl)}" placeholder="中文翻譯" style="flex:1;">
+      <button type="button" class="remove-example" style="flex-shrink:0;padding:2px 7px;" onclick="this.closest('.cmp-ex-row').remove()">✕</button>
+    </div>
+  </div>`;
+}
+
+function addCmpExRow(btn, side) {
+  const container = btn.previousElementSibling;
+  const div = document.createElement('div');
+  div.innerHTML = _buildCmpExRowHtml('', '');
+  container.appendChild(div.firstElementChild);
+}
+
 function addComparisonRow(c = {}) {
+  // normalise: old format had single thisExample/targetExample strings
+  const thisExamples = c.thisExamples || (c.thisExample ? [{text: c.thisExample, translation: c.thisTranslation||''}] : []);
+  const targetExamples = c.targetExamples || (c.targetExample ? [{text: c.targetExample, translation: c.targetTranslation||''}] : []);
+
   const container = document.getElementById('comparisonsContainer');
   const div = document.createElement('div');
   div.className = 'comparison-item';
+
   div.innerHTML = `
     <button type="button" class="remove-example" onclick="this.closest('.comparison-item').remove()">✕</button>
     <div class="form-group" style="margin-bottom:8px;">
@@ -493,24 +513,16 @@ function addComparisonRow(c = {}) {
         <input type="text" class="form-input cmp-target-note" value="${escapeHtml(c.targetNote||'')}" placeholder="例：完全列舉，只有這些">
       </div>
     </div>
-    <div class="form-row" style="gap:8px;">
+    <div class="form-row cmp-examples-row" style="gap:8px;align-items:flex-start;">
       <div class="form-group">
         <label class="form-label">✅ 本文法例句</label>
-        <input type="text" class="form-input cmp-this-ex" value="${escapeHtml(c.thisExample||'')}" placeholder="日文例句">
+        <div class="cmp-ex-list cmp-this-list">${thisExamples.map(e => _buildCmpExRowHtml(e.text||'', e.translation||'')).join('')}</div>
+        <button type="button" class="add-cmp-ex-btn" onclick="addCmpExRow(this,'this')">＋ 加例句</button>
       </div>
       <div class="form-group">
         <label class="form-label">🔶 相似文法例句</label>
-        <input type="text" class="form-input cmp-target-ex" value="${escapeHtml(c.targetExample||'')}" placeholder="日文例句">
-      </div>
-    </div>
-    <div class="form-row" style="gap:8px;">
-      <div class="form-group">
-        <label class="form-label">✅ 翻譯</label>
-        <input type="text" class="form-input cmp-this-tl" value="${escapeHtml(c.thisTranslation||'')}" placeholder="中文翻譯">
-      </div>
-      <div class="form-group">
-        <label class="form-label">🔶 翻譯</label>
-        <input type="text" class="form-input cmp-target-tl" value="${escapeHtml(c.targetTranslation||'')}" placeholder="中文翻譯">
+        <div class="cmp-ex-list cmp-target-list">${targetExamples.map(e => _buildCmpExRowHtml(e.text||'', e.translation||'')).join('')}</div>
+        <button type="button" class="add-cmp-ex-btn" onclick="addCmpExRow(this,'target')">＋ 加例句</button>
       </div>
     </div>
   `;
@@ -667,15 +679,19 @@ function saveGrammar() {
   if (!pattern || !meaning) { showToast('請填寫文法句型與意思', 'error'); return; }
 
   const cmpItems = document.querySelectorAll('#comparisonsContainer .comparison-item');
-  const comparisons = Array.from(cmpItems).map(item => ({
-    target: item.querySelector('.cmp-target').value.trim(),
-    thisNote: item.querySelector('.cmp-this-note').value.trim(),
-    targetNote: item.querySelector('.cmp-target-note').value.trim(),
-    thisExample: item.querySelector('.cmp-this-ex').value.trim(),
-    targetExample: item.querySelector('.cmp-target-ex').value.trim(),
-    thisTranslation: item.querySelector('.cmp-this-tl').value.trim(),
-    targetTranslation: item.querySelector('.cmp-target-tl').value.trim()
-  })).filter(c => c.target);
+  const comparisons = Array.from(cmpItems).map(item => {
+    const collectExList = (listSel) => Array.from(item.querySelectorAll(listSel + ' .cmp-ex-row')).map(row => ({
+      text: row.querySelector('.cmp-ex-text').value.trim(),
+      translation: row.querySelector('.cmp-ex-tl').value.trim()
+    })).filter(e => e.text);
+    return {
+      target: item.querySelector('.cmp-target').value.trim(),
+      thisNote: item.querySelector('.cmp-this-note').value.trim(),
+      targetNote: item.querySelector('.cmp-target-note').value.trim(),
+      thisExamples: collectExList('.cmp-this-list'),
+      targetExamples: collectExList('.cmp-target-list')
+    };
+  }).filter(c => c.target);
 
   const exItems = document.querySelectorAll('#examplesContainer .example-item');
   const examples = Array.from(exItems).map(item => {
