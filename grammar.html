@@ -248,6 +248,15 @@ function renderGrammar() {
 
   // Insert group section headers when viewing all groups without a search filter
   const showHeaders = currentGroup === '全部' && !currentSearch;
+  // Sort by group so section headers are always contiguous
+  if (showHeaders) {
+    data.sort((a, b) => {
+      const ga = a.group || '未分組', gb = b.group || '未分組';
+      if (ga === '未分組' && gb !== '未分組') return 1;
+      if (gb === '未分組' && ga !== '未分組') return -1;
+      return ga.localeCompare(gb, 'zh-TW');
+    });
+  }
   let lastGroupSeen = null;
   const sectionParts = [];
   data.forEach(g => {
