@@ -455,15 +455,12 @@ function togglePosTag(btn) {
 }
 
 function getSelectedPosTags() {
-  const selected = [];
-  document.querySelectorAll('.pos-tag-btn.selected').forEach(btn => {
-    selected.push(btn.dataset.value);
-  });
-  return selected;
+  return Array.from(document.querySelectorAll('#posTagsContainer .pos-tag-btn.selected'))
+    .map(btn => btn.dataset.value).filter(Boolean);
 }
 
 function setSelectedPosTags(tagsArray) {
-  document.querySelectorAll('.pos-tag-btn').forEach(btn => {
+  document.querySelectorAll('#posTagsContainer .pos-tag-btn').forEach(btn => {
     if (tagsArray.includes(btn.dataset.value)) {
       btn.classList.add('selected');
     } else {
@@ -1014,24 +1011,27 @@ function saveVocab() {
     const type = item.querySelector('.ex-type').value;
     const explanation = item.querySelector('.ex-explanation').value.trim();
     if (type === 'qa') {
-      const sentence         = item.querySelector('.ex-sentence').value.trim();
-      const hiragana         = item.querySelector('.ex-q-hiragana').value.trim();
-      const translation      = item.querySelector('.ex-q-translation').value.trim();
-      const answer           = item.querySelector('.ex-answer').value.trim();
-      const answerHiragana   = item.querySelector('.ex-a-hiragana').value.trim();
-      const answerTranslation = item.querySelector('.ex-a-translation').value.trim();
+      const qf = item.querySelector('.ex-qa-fields');
+      const sentence         = qf.querySelector('.ex-sentence').value.trim();
+      const hiragana         = qf.querySelector('.ex-q-hiragana').value.trim();
+      const translation      = qf.querySelector('.ex-q-translation').value.trim();
+      const answer           = qf.querySelector('.ex-answer').value.trim();
+      const answerHiragana   = qf.querySelector('.ex-a-hiragana').value.trim();
+      const answerTranslation = qf.querySelector('.ex-a-translation').value.trim();
       return sentence ? { type, sentence, hiragana, translation, answer, answerHiragana, answerTranslation, explanation } : null;
     }
     if (type === 'dialogue') {
-      const hiragana    = item.querySelector('.ex-hiragana')?.value.trim()    || '';
-      const translation = item.querySelector('.ex-translation')?.value.trim() || '';
+      const df = item.querySelector('.ex-dialogue-fields');
+      const hiragana    = df.querySelector('.ex-hiragana')?.value.trim()    || '';
+      const translation = df.querySelector('.ex-translation')?.value.trim() || '';
       const dialogue = collectDialogueRows(item);
       return dialogue.length ? { type, hiragana, dialogue, translation, explanation } : null;
     }
     // normal
-    const sentence    = item.querySelector('.ex-sentence').value.trim();
-    const hiragana    = item.querySelector('.ex-hiragana').value.trim();
-    const translation = item.querySelector('.ex-translation').value.trim();
+    const nf = item.querySelector('.ex-normal-fields');
+    const sentence    = nf.querySelector('.ex-sentence').value.trim();
+    const hiragana    = nf.querySelector('.ex-hiragana').value.trim();
+    const translation = nf.querySelector('.ex-translation').value.trim();
     return sentence ? { type: 'normal', sentence, hiragana, translation, explanation } : null;
   }).filter(Boolean);
 
