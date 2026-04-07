@@ -123,6 +123,7 @@
           <button type="button" onclick="insertDetailBlock('callout')"  title="插入注意框">※ 注意</button>
           <button type="button" onclick="insertDetailBlock('note')"     title="插入補充說明">💡 補充</button>
           <button type="button" onclick="insertDetailBlock('arrow')"    title="插入對比規則">⇒ 對比</button>
+          <button type="button" onclick="openTableEditor()"            title="插入表格">⊞ 表格</button>
         </div>
         <textarea class="form-textarea" id="editDetail" style="min-height:160px;font-family:var(--font-jp);" placeholder="支援格式：&#10;# 小標題&#10;--- 分隔線&#10;※ 注意事項（開頭 ※ ⚠️ 💡 📌 等）&#10;用「A」問⇒用「B」回答（含⇒的行）&#10;一般文字直接輸入"></textarea>
       </div>
@@ -158,6 +159,32 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- Table Editor Modal -->
+<div class="modal-overlay" id="tableEditorModal" style="display:none;z-index:2000;">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <div class="modal-title">⊞ 插入表格</div>
+      <button class="modal-close" onclick="closeTableEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:10px;">第一列為標題列（藍色底）。按 Tab 鍵可快速移到下一格。</p>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="addTableRow()">＋ 新增列</button>
+        <button class="btn btn-secondary btn-sm" onclick="addTableCol()">＋ 新增欄</button>
+        <button class="btn btn-secondary btn-sm" onclick="removeTableRow()">－ 刪除最後列</button>
+        <button class="btn btn-secondary btn-sm" onclick="removeTableCol()">－ 刪除最後欄</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="tableEditorGrid" class="table-editor-grid"></table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTableEditor()">取消</button>
+      <button class="btn btn-primary" onclick="insertTableToDetail()">插入</button>
+    </div>
+  </div>
+</div>
 
 <script src="js/data.js"></script>
 <script>
@@ -855,6 +882,40 @@ function copyId(id) {
 
 function renderDetail(text) {
   if (!text) return '';
+  // Split on [TABLE]...[/TABLE] blocks and process separately
+  const segments = [];
+  let lastIdx = 0;
+  const re = /\[TABLE\]([\s\S]*?)\[\/TABLE\]/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > lastIdx) segments.push({ type: 'text', content: text.slice(lastIdx, m.index) });
+    segments.push({ type: 'table', content: m[1] });
+    lastIdx = m.index + m[0].length;
+  }
+  if (lastIdx < text.length) segments.push({ type: 'text', content: text.slice(lastIdx) });
+  if (!segments.length) segments.push({ type: 'text', content: text });
+  return segments.map(seg => seg.type === 'table' ? renderTableBlock(seg.content) : renderTextBlock(seg.content)).join('');
+}
+
+function renderTableBlock(content) {
+  const rows = content.trim().split('\n').filter(l => l.trim());
+  if (!rows.length) return '';
+  let html = '<div class="detail-table-wrap"><table class="detail-table">';
+  rows.forEach((row, ri) => {
+    const cells = row.split('|');
+    html += '<tr>';
+    cells.forEach(cell => {
+      const tag = ri === 0 ? 'th' : 'td';
+      html += `<${tag}>${escapeHtml(cell.trim())}</${tag}>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table></div>';
+  return html;
+}
+
+function renderTextBlock(text) {
+  if (!text) return '';
   const lines = text.split('\n');
   let html = '';
   let paraLines = [];
@@ -869,7 +930,6 @@ function renderDetail(text) {
 
   for (const raw of lines) {
     const line = raw;
-
     if (line.trim() === '---') {
       flushPara();
       html += `<hr class="detail-divider">`;
@@ -896,6 +956,81 @@ function renderDetail(text) {
   }
   flushPara();
   return html;
+}
+
+// ===== Table Editor =====
+let tableEditorData = [];
+
+function openTableEditor() {
+  tableEditorData = [['', '', ''], ['', '', ''], ['', '', '']];
+  renderTableEditorGrid();
+  const m = document.getElementById('tableEditorModal');
+  m.style.display = 'flex';
+  m.style.opacity = '1';
+  m.style.pointerEvents = 'all';
+}
+
+function closeTableEditor() {
+  const m = document.getElementById('tableEditorModal');
+  m.style.display = 'none';
+  m.style.opacity = '0';
+  m.style.pointerEvents = 'none';
+}
+
+function syncTableEditorData() {
+  const trs = Array.from(document.getElementById('tableEditorGrid').querySelectorAll('tr'));
+  tableEditorData = trs.map(tr => Array.from(tr.querySelectorAll('input')).map(inp => inp.value));
+}
+
+function renderTableEditorGrid() {
+  const table = document.getElementById('tableEditorGrid');
+  const rows = tableEditorData.length;
+  const cols = tableEditorData[0]?.length || 0;
+  let html = '';
+  for (let r = 0; r < rows; r++) {
+    html += '<tr>';
+    for (let c = 0; c < cols; c++) {
+      const isHeader = r === 0;
+      html += `<td style="padding:2px 3px;"><input type="text" class="table-cell-input${isHeader ? ' table-header-cell' : ''}" value="${escapeHtml(tableEditorData[r][c] || '')}" placeholder="${isHeader ? '標題' : ''}"></td>`;
+    }
+    html += '</tr>';
+  }
+  table.innerHTML = html;
+}
+
+function addTableRow() {
+  syncTableEditorData();
+  const cols = tableEditorData[0]?.length || 2;
+  tableEditorData.push(new Array(cols).fill(''));
+  renderTableEditorGrid();
+}
+
+function addTableCol() {
+  syncTableEditorData();
+  tableEditorData.forEach(row => row.push(''));
+  renderTableEditorGrid();
+}
+
+function removeTableRow() {
+  syncTableEditorData();
+  if (tableEditorData.length > 1) { tableEditorData.pop(); renderTableEditorGrid(); }
+}
+
+function removeTableCol() {
+  syncTableEditorData();
+  if ((tableEditorData[0]?.length || 0) > 1) { tableEditorData.forEach(row => row.pop()); renderTableEditorGrid(); }
+}
+
+function insertTableToDetail() {
+  syncTableEditorData();
+  const tableText = '[TABLE]\n' + tableEditorData.map(row => row.join('|')).join('\n') + '\n[/TABLE]';
+  const ta = document.getElementById('editDetail');
+  const start = ta.selectionStart;
+  const before = ta.value.slice(0, start);
+  const after  = ta.value.slice(start);
+  const needsNewline = before.length && !before.endsWith('\n');
+  ta.value = (needsNewline ? before + '\n' : before) + tableText + '\n' + after;
+  closeTableEditor();
 }
 
 function insertDetailBlock(type) {

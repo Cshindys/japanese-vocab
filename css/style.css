@@ -1387,6 +1387,25 @@ rt {
 .dl-row-fields { display: flex; gap: 6px; flex: 1; min-width: 0; }
 .dl-row-right { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
+/* ===== Table Editor ===== */
+.table-editor-grid { border-collapse: collapse; }
+.table-cell-input {
+  width: 100%; min-width: 90px; padding: 5px 8px;
+  border: 1px solid var(--border); border-radius: 4px;
+  font-family: var(--font-jp); font-size: 0.85rem;
+  box-sizing: border-box;
+}
+.table-cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+.table-header-cell { background: #EBF4FF; font-weight: 600; border-color: #BFDBFE; }
+
+/* ===== Detail table (rendered) ===== */
+.detail-table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 8px; border: 1px solid var(--border); }
+.detail-table { border-collapse: collapse; width: 100%; font-size: 0.88rem; font-family: var(--font-jp); }
+.detail-table th, .detail-table td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; line-height: 1.6; }
+.detail-table th { background: var(--sidebar-bg); font-weight: 700; color: var(--text-primary); }
+.detail-table tr:nth-child(even) td { background: #fafbff; }
+.detail-table tr:hover td { background: #f0f4ff; }
+
 /* ===== Utility ===== */
 .hidden { display: none !important; }
 .text-center { text-align: center; }
