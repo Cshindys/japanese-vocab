@@ -567,7 +567,6 @@ function renderVocab() {
         <div class="card-meaning">${v.meaning}</div>
         <div class="card-footer">
           <span class="example-count">💬 ${(v.examples || []).length} 個例句</span>
-          ${gTags ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">${gTags}</div>` : ''}
         </div>
       </div>
     </div>`;
@@ -640,6 +639,16 @@ function openDetail(id) {
 
   const grammarIds = v.grammarIds || [];
 
+  // Build per-example grammar badge row from ex.grammarIds
+  const exGrammarRow = (ex) => {
+    const ids = ex.grammarIds || [];
+    if (!ids.length) return '';
+    const badges = ids.map(gid => grammar.find(g => g.id === gid)).filter(Boolean)
+      .map(g => `<a href="grammar.html#${g.id}" class="badge badge-grammar ex-grammar-badge" style="text-decoration:none;" title="${escapeAttr(g.meaning)}">${escapeHtml(g.pattern)}</a>`)
+      .join('');
+    return badges ? `<div class="ex-grammar-row">📎 ${badges}</div>` : '';
+  };
+
   const examplesHtml = (v.examples || []).map(ex => {
     const explHtml = ex.explanation
       ? ex.explanation.split('\n').filter(l => l.trim())
@@ -675,6 +684,7 @@ function openDetail(id) {
           </div>
           ${sharedTlHtml}
           ${explHtml}
+          ${exGrammarRow(ex)}
         </div>`;
     }
 
@@ -695,10 +705,10 @@ function openDetail(id) {
           <div class="dialogue-container">${bubblesHtml}</div>
           ${ex.translation ? `<div class="example-translation">${escapeHtml(ex.translation)}</div>` : ''}
           ${explHtml}
+          ${exGrammarRow(ex)}
         </div>`;
     }
 
-    const gBadges = grammarTagsForSentence(ex.sentence, grammarIds, grammar);
     const linkedSentence = linkVocabInSentence(ex.sentence, v.id, vocab);
     const sentHtml = ex.hiragana ? addFurigana(ex.sentence, ex.hiragana) : linkedSentence;
     return `
@@ -711,7 +721,7 @@ function openDetail(id) {
         </div>
         <div class="example-translation">${escapeHtml(ex.translation||'')}</div>
         ${explHtml}
-        ${gBadges ? `<div class="ex-grammar-row">${gBadges}</div>` : ''}
+        ${exGrammarRow(ex)}
       </div>`;
   }).join('') || '<p style="color:var(--text-light);font-size:0.85rem;padding:8px 0;">尚無例句</p>';
 
@@ -939,9 +949,23 @@ function addExampleRow(ex = {}, idx) {
     </div>
 
     <!-- ── 說明（always）── -->
-    <div class="form-group" style="margin-bottom:0;">
+    <div class="form-group" style="margin-bottom:8px;">
       <label class="form-label">說明（可選）</label>
       <textarea class="form-input ex-explanation" style="min-height:60px;font-family:inherit;resize:vertical;" placeholder="每行一條說明">${escapeHtml(ex.explanation||'')}</textarea>
+    </div>
+
+    <!-- ── 關聯文法（per sentence）── -->
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label" style="cursor:pointer;" onclick="const p=this.parentElement.querySelector('.ex-grammar-tags');p.style.display=p.style.display==='none'?'flex':'none'">
+        📎 關聯文法（可選） <span style="font-size:0.75rem;color:var(--text-secondary);">▼</span>
+      </label>
+      <div class="ex-grammar-tags" style="display:none;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fafafa;">
+        ${Storage.getGrammar().map(g =>
+          `<button type="button" class="pos-tag-btn ex-grammar-btn${(ex.grammarIds||[]).includes(g.id)?' selected':''}"
+            data-grammar-id="${g.id}" onclick="this.classList.toggle('selected')"
+            title="${escapeAttr(g.meaning)}">${escapeHtml(g.level)} ${escapeHtml(g.pattern)}</button>`
+        ).join('')}
+      </div>
     </div>
   `;
   container.appendChild(div);
@@ -1007,6 +1031,8 @@ function saveVocab() {
   const examples = Array.from(exItems).map(item => {
     const type = item.querySelector('.ex-type').value;
     const explanation = item.querySelector('.ex-explanation').value.trim();
+    const exGrammarIds = Array.from(item.querySelectorAll('.ex-grammar-btn.selected'))
+      .map(b => b.dataset.grammarId).filter(Boolean);
     if (type === 'qa') {
       const qf = item.querySelector('.ex-qa-fields');
       const sentence         = qf.querySelector('.ex-sentence').value.trim();
@@ -1015,21 +1041,21 @@ function saveVocab() {
       const answer           = qf.querySelector('.ex-answer').value.trim();
       const answerHiragana   = qf.querySelector('.ex-a-hiragana').value.trim();
       const answerTranslation = qf.querySelector('.ex-a-translation').value.trim();
-      return sentence ? { type, sentence, hiragana, translation, answer, answerHiragana, answerTranslation, explanation } : null;
+      return sentence ? { type, sentence, hiragana, translation, answer, answerHiragana, answerTranslation, explanation, grammarIds: exGrammarIds } : null;
     }
     if (type === 'dialogue') {
       const df = item.querySelector('.ex-dialogue-fields');
       const hiragana    = df.querySelector('.ex-hiragana')?.value.trim()    || '';
       const translation = df.querySelector('.ex-translation')?.value.trim() || '';
       const dialogue = collectDialogueRows(item);
-      return dialogue.length ? { type, hiragana, dialogue, translation, explanation } : null;
+      return dialogue.length ? { type, hiragana, dialogue, translation, explanation, grammarIds: exGrammarIds } : null;
     }
     // normal
     const nf = item.querySelector('.ex-normal-fields');
     const sentence    = nf.querySelector('.ex-sentence').value.trim();
     const hiragana    = nf.querySelector('.ex-hiragana').value.trim();
     const translation = nf.querySelector('.ex-translation').value.trim();
-    return sentence ? { type: 'normal', sentence, hiragana, translation, explanation } : null;
+    return sentence ? { type: 'normal', sentence, hiragana, translation, explanation, grammarIds: exGrammarIds } : null;
   }).filter(Boolean);
 
   const vocab = Storage.getVocab();
