@@ -949,15 +949,37 @@ function addExampleRow(ex = {}, idx) {
 
     <!-- ── 關聯文法（per sentence）── -->
     <div class="form-group" style="margin-bottom:0;">
-      <label class="form-label" style="cursor:pointer;" onclick="const p=this.parentElement.querySelector('.ex-grammar-tags');p.style.display=p.style.display==='none'?'flex':'none'">
+      <label class="form-label" style="cursor:pointer;user-select:none;" onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none'">
         📎 關聯文法（可選） <span style="font-size:0.75rem;color:var(--text-secondary);">▼</span>
       </label>
-      <div class="ex-grammar-tags" style="display:none;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fafafa;">
-        ${Storage.getGrammar().map(g =>
-          `<button type="button" class="pos-tag-btn ex-grammar-btn${(ex.grammarIds||[]).includes(g.id)?' selected':''}"
-            data-grammar-id="${g.id}" onclick="this.classList.toggle('selected')"
-            title="${escapeAttr(g.meaning)}">${escapeHtml(g.level)} ${escapeHtml(g.pattern)}</button>`
-        ).join('')}
+      <div class="ex-grammar-tags" style="display:none;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fafafa;padding:6px 8px;">
+        ${(() => {
+          const allG = Storage.getGrammar();
+          const selIds = ex.grammarIds || [];
+          // Group by g.group; ungrouped → '其他'
+          const groups = {};
+          allG.forEach(g => {
+            const key = g.group || '其他';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(g);
+          });
+          // Sort: named groups first (alphabetical), '其他' last
+          const keys = Object.keys(groups).sort((a, b) =>
+            a === '其他' ? 1 : b === '其他' ? -1 : a.localeCompare(b, 'zh-TW'));
+          return keys.map(key => `
+            <div class="ex-grammar-group">
+              <div class="ex-grammar-group-header" onclick="const c=this.nextElementSibling;c.style.display=c.style.display==='none'?'flex':'none';this.querySelector('.eg-chevron').textContent=c.style.display==='none'?'▶':'▼'">
+                <span class="eg-chevron">▼</span> ${escapeHtml(key)}
+              </div>
+              <div class="ex-grammar-group-btns">
+                ${groups[key].map(g =>
+                  `<button type="button" class="pos-tag-btn ex-grammar-btn${selIds.includes(g.id)?' selected':''}"
+                    data-grammar-id="${g.id}" onclick="this.classList.toggle('selected')"
+                    title="${escapeAttr(g.meaning)}">${escapeHtml(g.pattern)}</button>`
+                ).join('')}
+              </div>
+            </div>`).join('');
+        })()}
       </div>
     </div>
   `;

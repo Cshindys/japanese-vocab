@@ -97,9 +97,15 @@
           </select>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">意思說明</label>
-        <input type="text" class="form-input" id="editMeaning" placeholder="例：〜是〜（表示斷定）">
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label class="form-label">意思說明</label>
+          <input type="text" class="form-input" id="editMeaning" placeholder="例：〜是〜（表示斷定）">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">分組（可選）</label>
+          <input type="text" class="form-input" id="editGroup" placeholder="例：指示詞、助詞">
+        </div>
       </div>
       <div class="form-group">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -427,6 +433,7 @@ function openAdd() {
   document.getElementById('editPattern').value = '';
   document.getElementById('editLevel').value = 'N5';
   document.getElementById('editMeaning').value = '';
+  document.getElementById('editGroup').value = '';
   renderConjugationsInForm([]);
   document.getElementById('editDetail').value = '';
   document.getElementById('editAuthor').value = '';
@@ -447,6 +454,7 @@ function openEdit(id) {
   document.getElementById('editPattern').value = g.pattern;
   document.getElementById('editLevel').value = g.level;
   document.getElementById('editMeaning').value = g.meaning;
+  document.getElementById('editGroup').value = g.group || '';
   const conjs = g.conjugations?.length ? g.conjugations
     : [g.conjugation, g.detailedConjugation].filter(Boolean);
   renderConjugationsInForm(conjs);
@@ -664,6 +672,7 @@ function saveGrammar() {
   const pattern = document.getElementById('editPattern').value.trim();
   const level = document.getElementById('editLevel').value;
   const meaning = document.getElementById('editMeaning').value.trim();
+  const group = document.getElementById('editGroup').value.trim();
   const conjugations = Array.from(document.querySelectorAll('#conjugationsContainer .conj-input'))
     .map(i => i.value.trim()).filter(Boolean);
   const detail = document.getElementById('editDetail').value.trim();
@@ -719,10 +728,10 @@ function saveGrammar() {
   const grammar = Storage.getGrammar();
   if (id) {
     const idx = grammar.findIndex(g => g.id === id);
-    if (idx !== -1) grammar[idx] = { ...grammar[idx], pattern, level, meaning, conjugations, detail, author, sourceUrl, comparisons, examples };
+    if (idx !== -1) grammar[idx] = { ...grammar[idx], pattern, level, meaning, group, conjugations, detail, author, sourceUrl, comparisons, examples };
     showToast('文法已更新', 'success');
   } else {
-    grammar.push({ id: Storage.genId('g'), pattern, level, meaning, conjugations, detail, author, sourceUrl, comparisons, examples });
+    grammar.push({ id: Storage.genId('g'), pattern, level, meaning, group, conjugations, detail, author, sourceUrl, comparisons, examples });
     showToast('新增成功', 'success');
   }
 
