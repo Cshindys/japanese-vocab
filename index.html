@@ -314,6 +314,17 @@
         <input type="text" class="form-input" id="editMeaning" placeholder="例：學校">
       </div>
 
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">近義詞（多個請用逗號隔開）</label>
+          <input type="text" class="form-input" id="editSynonyms" placeholder="例：学校,学院">
+        </div>
+        <div class="form-group">
+          <label class="form-label">反義詞（多個請用逗號隔開）</label>
+          <input type="text" class="form-input" id="editAntonyms" placeholder="例：社会,校外">
+        </div>
+      </div>
+
       <div class="examples-section">
         <div class="examples-label">例句</div>
         <div id="examplesContainer"></div>
@@ -791,6 +802,8 @@ function openAdd() {
   setSelectedPosTags([]); 
   
   document.getElementById('editMeaning').value = '';
+  document.getElementById('editSynonyms').value = '';
+  document.getElementById('editAntonyms').value = '';
   document.getElementById('editDeleteBtn').style.display = 'none';
   renderExamplesInForm([]);
   document.getElementById('editModal').classList.add('open');
@@ -811,6 +824,8 @@ function openEdit(id) {
   setSelectedPosTags(posArr);
 
   document.getElementById('editMeaning').value = v.meaning;
+  document.getElementById('editSynonyms').value = v.synonyms || '';
+  document.getElementById('editAntonyms').value = v.antonyms || '';
   document.getElementById('editDeleteBtn').style.display = 'inline-flex';
   renderExamplesInForm(v.examples || []);
   document.getElementById('editModal').classList.add('open');
@@ -998,6 +1013,8 @@ function saveVocab() {
   const partOfSpeech = getSelectedPosTags(); 
   
   const meaning = document.getElementById('editMeaning').value.trim();
+  const synonyms = document.getElementById('editSynonyms').value.trim();
+  const antonyms = document.getElementById('editAntonyms').value.trim();
 
   if (!kanji || !meaning) { showToast('請填寫單字與意思', 'error'); return; }
 
@@ -1035,10 +1052,10 @@ function saveVocab() {
   const vocab = Storage.getVocab();
   if (id) {
     const idx = vocab.findIndex(v => v.id === id);
-    if (idx !== -1) vocab[idx] = { ...vocab[idx], kanji, hiragana, level, partOfSpeech, meaning, examples };
+    if (idx !== -1) vocab[idx] = { ...vocab[idx], kanji, hiragana, level, partOfSpeech, meaning, synonyms, antonyms, examples };
     showToast('單字已更新', 'success');
   } else {
-    vocab.push({ id: Storage.genId('v'), kanji, hiragana, level, partOfSpeech, meaning, examples });
+    vocab.push({ id: Storage.genId('v'), kanji, hiragana, level, partOfSpeech, meaning, synonyms, antonyms, examples });
     showToast('新增成功', 'success');
   }
 
