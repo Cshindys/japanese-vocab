@@ -1075,23 +1075,45 @@ function linkVocabInSentence(sentence) {
 }
 
 let _ttsAudio = null;
-function speakWord(text) {
-  if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; }
-  const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ja&client=tw-ob`;
-  const audio = new Audio(url);
-  _ttsAudio = audio;
-  audio.onerror = () => { _ttsAudio = null; _speakFallback(text); };
-  audio.onended = () => { _ttsAudio = null; };
-  audio.play().catch(() => _speakFallback(text));
+const _WK_BASE = 'https://raw.githubusercontent.com/tofugu/japanese-vocabulary-pronunciation-audio/master/lib/mp3/';
+
+// speakWord(text) — text is the Japanese sentence/word to speak
+// For single vocab words, pass kanji+reading so we can try WaniKani audio first
+function speakWord(text, btn, kanji) {
+  if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; if (btn) btn.textContent = '🔊'; }
+  if (kanji && kanji !== text) {
+    // Try WaniKani recorded audio: kanji【よみ】.mp3
+    _tryWkAudio(kanji, text, btn);
+  } else {
+    _speakFallback(text, btn);
+  }
 }
-function _speakFallback(text) {
+
+function _tryWkAudio(kanji, reading, btn) {
+  const filename = encodeURIComponent(`${kanji}【${reading}】`) + '.mp3';
+  const audio = new Audio(_WK_BASE + filename);
+  _ttsAudio = audio;
+  if (btn) { btn.textContent = '⏸'; audio.onended = () => { btn.textContent = '🔊'; _ttsAudio = null; }; }
+  else { audio.onended = () => { _ttsAudio = null; }; }
+  audio.onerror = () => { _ttsAudio = null; if (btn) btn.textContent = '🔊'; _speakFallback(reading, btn); };
+  audio.play().catch(() => { _ttsAudio = null; if (btn) btn.textContent = '🔊'; _speakFallback(reading, btn); });
+}
+
+function _speakFallback(text, btn) {
+  if (btn) btn.textContent = '🔊';
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'ja-JP'; utter.rate = 0.9;
-  const v = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ja'));
-  if (v) utter.voice = v;
-  window.speechSynthesis.speak(utter);
+  const doSpeak = () => {
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(v => v.lang === 'ja-JP') || voices.find(v => v.lang.startsWith('ja'));
+    if (v) utter.voice = v;
+    window.speechSynthesis.speak(utter);
+  };
+  // voices may not be loaded yet on first call
+  if (window.speechSynthesis.getVoices().length) doSpeak();
+  else window.speechSynthesis.onvoiceschanged = doSpeak;
 }
 
 function escapeHtml(str) {

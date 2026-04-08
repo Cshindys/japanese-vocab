@@ -553,7 +553,7 @@ function renderVocab() {
             <span class="badge ${getLevelClass(v.level)}">${v.level}</span>
             ${posBadges}
           </div>
-          <button class="btn-play" onclick="event.stopPropagation();speakWord('${escapeAttr(v.hiragana)}')" title="發音">
+          <button class="btn-play" onclick="event.stopPropagation();speakWord('${escapeAttr(v.hiragana)}',this,'${escapeAttr(v.kanji.split('／')[0].split('/')[0].trim())}')" title="發音">
             🔊
           </button>
         </div>
@@ -738,7 +738,7 @@ function openDetail(id) {
         </div>
         <div class="vd-meaning">${v.meaning}</div>
       </div>
-      <button class="vd-play-btn" id="detailPlayBtn" onclick="speakWord('${escapeAttr(v.hiragana)}', this)" title="播放發音">🔊</button>
+      <button class="vd-play-btn" id="detailPlayBtn" onclick="speakWord('${escapeAttr(v.hiragana)}', this, '${escapeAttr(v.kanji.split('／')[0].split('/')[0].trim())}')" title="播放發音">🔊</button>
     </div>
 
     ${(hasSynonyms || hasAntonyms) ? `
@@ -768,28 +768,42 @@ function closeDetail() {
 
 // ===== Speech =====
 let _ttsAudio = null;
-function speakWord(text, btn) {
-  if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; }
-  const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ja&client=tw-ob`;
-  const audio = new Audio(url);
-  _ttsAudio = audio;
-  if (btn) {
-    btn.textContent = '⏸';
-    audio.onended = () => { btn.textContent = '🔊'; _ttsAudio = null; };
-    audio.onerror  = () => { btn.textContent = '🔊'; _ttsAudio = null; _speakFallback(text); };
+const _WK_BASE = 'https://raw.githubusercontent.com/tofugu/japanese-vocabulary-pronunciation-audio/master/lib/mp3/';
+
+// speakWord(text, btn, kanji) — for vocab words pass kanji to try WaniKani audio first
+function speakWord(text, btn, kanji) {
+  if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; if (btn) btn.textContent = '🔊'; }
+  if (kanji && kanji !== text) {
+    _tryWkAudio(kanji, text, btn);
   } else {
-    audio.onerror = () => _speakFallback(text);
+    _speakFallback(text, btn);
   }
-  audio.play().catch(() => _speakFallback(text));
 }
-function _speakFallback(text) {
+
+function _tryWkAudio(kanji, reading, btn) {
+  const filename = encodeURIComponent(`${kanji}【${reading}】`) + '.mp3';
+  const audio = new Audio(_WK_BASE + filename);
+  _ttsAudio = audio;
+  if (btn) { btn.textContent = '⏸'; audio.onended = () => { btn.textContent = '🔊'; _ttsAudio = null; }; }
+  else { audio.onended = () => { _ttsAudio = null; }; }
+  audio.onerror = () => { _ttsAudio = null; if (btn) btn.textContent = '🔊'; _speakFallback(reading, btn); };
+  audio.play().catch(() => { _ttsAudio = null; if (btn) btn.textContent = '🔊'; _speakFallback(reading, btn); });
+}
+
+function _speakFallback(text, btn) {
+  if (btn) btn.textContent = '🔊';
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'ja-JP'; utter.rate = 0.9;
-  const v = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ja'));
-  if (v) utter.voice = v;
-  window.speechSynthesis.speak(utter);
+  const doSpeak = () => {
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(v => v.lang === 'ja-JP') || voices.find(v => v.lang.startsWith('ja'));
+    if (v) utter.voice = v;
+    window.speechSynthesis.speak(utter);
+  };
+  if (window.speechSynthesis.getVoices().length) doSpeak();
+  else window.speechSynthesis.onvoiceschanged = doSpeak;
 }
 
 // ===== Edit Modal =====
