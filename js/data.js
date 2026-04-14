@@ -527,23 +527,50 @@ const Storage = {
 
   // ── 從 Supabase 載入（頁面啟動時呼叫一次）──
   async loadFromCloud() {
+    // Helper: pick best available source — Supabase > localStorage > null
+    // Returns null (not []) when nothing found, so getVocab() can fall back to DEFAULT
+    const best = (supabaseRows, lsKey) => {
+      if (supabaseRows && supabaseRows.length > 0) return supabaseRows.map(row => row.data);
+      const ls = this._fromLS(lsKey);
+      return ls.length > 0 ? ls : null;
+    };
+
     if (typeof db === 'undefined') {
-      this._cache.vocab    = this._fromLS('jp_vocab');
-      this._cache.grammar  = this._fromLS('jp_grammar');
-      this._cache.readings = this._fromLS('jp_readings');
+      this._cache.vocab    = best(null, 'jp_vocab');
+      this._cache.grammar  = best(null, 'jp_grammar');
+      this._cache.readings = best(null, 'jp_readings');
       return false;
     }
 
-    const [v, g, r] = await Promise.all([
-      db.from('vocab').select('data'),
-      db.from('grammar').select('data'),
-      db.from('readings').select('data'),
-    ]);
+    try {
+      const [v, g, r] = await Promise.all([
+        db.from('vocab').select('data'),
+        db.from('grammar').select('data'),
+        db.from('readings').select('data'),
+      ]);
 
-    this._cache.vocab    = v.data ? v.data.map(row => row.data) : this._fromLS('jp_vocab');
-    this._cache.grammar  = g.data ? g.data.map(row => row.data) : this._fromLS('jp_grammar');
-    this._cache.readings = r.data ? r.data.map(row => row.data) : this._fromLS('jp_readings');
-    return true;
+      if (v.error || g.error || r.error) {
+        const msg = (v.error || g.error || r.error)?.message || '未知錯誤';
+        console.error('[Supabase] 載入失敗:', msg);
+        showToast('⚠️ 雲端資料載入失敗，使用本機備份', 'error');
+        this._cache.vocab    = best(null, 'jp_vocab');
+        this._cache.grammar  = best(null, 'jp_grammar');
+        this._cache.readings = best(null, 'jp_readings');
+        return false;
+      }
+
+      this._cache.vocab    = best(v.data, 'jp_vocab');
+      this._cache.grammar  = best(g.data, 'jp_grammar');
+      this._cache.readings = best(r.data, 'jp_readings');
+      return true;
+    } catch (err) {
+      console.error('[Supabase] 連線失敗:', err);
+      showToast('⚠️ 無法連接雲端，使用本機備份', 'error');
+      this._cache.vocab    = best(null, 'jp_vocab');
+      this._cache.grammar  = best(null, 'jp_grammar');
+      this._cache.readings = best(null, 'jp_readings');
+      return false;
+    }
   },
 
   _fromLS(key) {
